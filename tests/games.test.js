@@ -198,13 +198,26 @@ test('glacier: never braking sends him into the water', () => {
   assert.equal(g.bankroll, 900);
 });
 
-test('glacier: braking the whole way stops him far too early', () => {
-  const g = new GlacierGame({ bankroll: 1000, bet: 100 });
-  g.deal();
-  const r = slide(g, () => true);
-  assert.equal(r.fell, false);
-  assert.equal(r.zone, null);
-  assert.equal(g.bankroll, 900);
+test('glacier: braking the whole way never pays (it always stops too far back)', () => {
+  const g = new GlacierGame({ bankroll: 1e6, bet: 100 });
+  for (let i = 0; i < 400; i++) {
+    g.deal();
+    const r = slide(g, () => true);
+    assert.equal(r.fell, false);
+    assert.equal(r.zone, null, `stopped ${r.distance.toFixed(2)} m from the edge`);
+  }
+});
+
+test('glacier: black ice, braking the whole way still never wins money', async () => {
+  const { CONFIG } = await import('../src/config.js');
+  const black = CONFIG.games.find((x) => x.id === 'glacier').modes.find((m) => m.id === 'glacier-black');
+  const g = new GlacierGame({ bankroll: 1e6, bet: 100, rules: black.rules });
+  for (let i = 0; i < 400; i++) {
+    g.deal();
+    const r = slide(g, () => true);
+    assert.equal(r.fell, false);
+    assert.ok(r.payout <= r.bet * 0.5, `full brake paid ${r.payout}`);
+  }
 });
 
 test('glacier: a well-timed brake lands near the edge and pays', () => {

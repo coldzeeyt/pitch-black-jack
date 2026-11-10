@@ -7,6 +7,10 @@ His name is Jack.
 
 ## Play
 
+**In your browser:** https://coldzeeyt.github.io/pitch-black-jack/ (once GitHub Pages is on).
+
+**On your own computer:**
+
 ```bash
 npm start
 ```

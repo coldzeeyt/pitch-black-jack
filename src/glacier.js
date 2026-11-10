@@ -7,17 +7,17 @@ import { fairRandom } from './blackjack.js';
 
 export const GLACIER_DEFAULTS = {
   length: 3.0, // metres from the start line to the edge
-  speed: [2.9, 3.7], // starting speed range, m/s
+  speed: [2.8, 3.4], // starting speed range, m/s
   friction: 0.55, // ice drag, m/s² on average
   patchiness: 0.6, // how much the drag varies along the ice (0 = smooth)
-  brake: 2.6, // extra slowing while braking, m/s²
+  brake: 3.0, // extra slowing while braking, m/s²
   // payout by how far from the edge he stops (metres)
   zones: [
     { within: 0.06, pays: 8, name: 'On the lip' },
     { within: 0.18, pays: 4, name: 'Toes over' },
     { within: 0.4, pays: 2, name: 'Close' },
     { within: 0.75, pays: 1.2, name: 'Safe' },
-    { within: 1.25, pays: 0.5, name: 'Timid' },
+    { within: 1.0, pays: 0.5, name: 'Timid' },
   ],
   minBet: 5,
   maxBet: 1000,

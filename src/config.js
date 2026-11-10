@@ -84,7 +84,7 @@ export const CONFIG = {
           id: 'glacier-black',
           name: 'Black Ice',
           blurb: 'Faster pushes and wild slick patches. Harder to judge.',
-          rules: { speed: [3.3, 4.3], friction: 0.42, patchiness: 0.95 },
+          rules: { speed: [3.1, 3.9], friction: 0.42, patchiness: 0.95, brake: 3.6 },
         },
       ],
     },
