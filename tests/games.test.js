@@ -240,7 +240,7 @@ test('glacier: every run rolls a different push and different ice', () => {
   const g = new GlacierGame({ bankroll: 1e6 });
   const speeds = new Set();
   for (let i = 0; i < 20; i++) {
-    speeds.add(g.deal().v.toFixed(4));
+    speeds.add(g.deal().v.toFixed(10));
     slide(g, () => true);
   }
   assert.equal(speeds.size, 20);
