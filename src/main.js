@@ -261,7 +261,11 @@ function renderActions() {
     const a = game.availableActions();
     const r = game.rules;
     const inMode = { hit: true, stand: true, double: r.allowDouble, split: r.allowSplit, surrender: r.lateSurrender };
-    items = ACTIONS.filter((x) => inMode[x.id]).map((x) => ({ ...x, on: a[x.id] }));
+    items = ACTIONS.filter((x) => inMode[x.id]).map((x) => ({
+      ...x,
+      label: mode.labels?.[x.id] ?? x.label,
+      on: a[x.id],
+    }));
   }
   bar.innerHTML = '';
   for (const it of items) {

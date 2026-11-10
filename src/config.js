@@ -25,6 +25,13 @@ export const CONFIG = {
       rules: { allowDouble: false, allowSplit: false, lateSurrender: false, insurance: false },
     },
     {
+      id: 'baby',
+      name: 'Baby',
+      blurb: 'Hit & Stand, but Jack speaks your language. Get anofer cawd?',
+      rules: { allowDouble: false, allowSplit: false, lateSurrender: false, insurance: false },
+      labels: { hit: 'get anofer cawd', stand: 'dont get anofer cawd' },
+    },
+    {
       id: 'single',
       name: 'Single Deck',
       blurb: 'One deck, shuffled often. No surrender. Count the cards if you dare.',

@@ -37,6 +37,17 @@ your account statement, with the money visibly leaving or entering your account.
 | `M` | Mute |
 | `?` | Rules and keys |
 
+## Game modes
+
+Pick one on the start screen (`1`–`4`):
+
+- **Classic**: full Vegas rules, below
+- **Hit & Stand**: only hit and stand
+- **Baby**: Hit & Stand, but the buttons say *get anofer cawd* and *dont get anofer cawd*
+- **Single Deck**: one deck, shuffled often, no surrender
+
+Modes live in `src/config.js`. Add your own by overriding any rule.
+
 ## House rules
 
 Real casino blackjack, as dealt on the Las Vegas Strip:
