@@ -171,3 +171,64 @@ test('thin ice: whenever you cash out, the house keeps a small edge', () => {
     assert.ok(r < 0.02 && r > -0.15, `cash out at ${target}: ${(r * 100).toFixed(1)}% per round`);
   }
 });
+
+import { GlacierGame } from '../src/glacier.js';
+
+const slide = (g, brakeWhen) => {
+  let state = 'sliding';
+  while (state === 'sliding') state = g.tick(1 / 60, brakeWhen(g));
+  return g.lastResult;
+};
+
+test('glacier: payout grows the closer he stops to the edge', () => {
+  const g = new GlacierGame();
+  assert.equal(g.zoneFor(0.03).pays, 8);
+  assert.equal(g.zoneFor(0.1).pays, 4);
+  assert.equal(g.zoneFor(0.3).pays, 2);
+  assert.equal(g.zoneFor(0.6).pays, 1.2);
+  assert.equal(g.zoneFor(1.0).pays, 0.5);
+  assert.equal(g.zoneFor(2.0), null);
+});
+
+test('glacier: never braking sends him into the water', () => {
+  const g = new GlacierGame({ bankroll: 1000, bet: 100 });
+  g.deal();
+  const r = slide(g, () => false);
+  assert.equal(r.fell, true);
+  assert.equal(g.bankroll, 900);
+});
+
+test('glacier: braking the whole way stops him far too early', () => {
+  const g = new GlacierGame({ bankroll: 1000, bet: 100 });
+  g.deal();
+  const r = slide(g, () => true);
+  assert.equal(r.fell, false);
+  assert.equal(r.zone, null);
+  assert.equal(g.bankroll, 900);
+});
+
+test('glacier: a well-timed brake lands near the edge and pays', () => {
+  // brake only when he'd otherwise overshoot: stopping distance v²/2a vs distance left
+  const g = new GlacierGame({ bankroll: 1000, bet: 100 });
+  let wins = 0;
+  for (let i = 0; i < 50; i++) {
+    g.deal();
+    const r = slide(g, (gm) => {
+      const run = gm.run;
+      const coast = (run.v * run.v) / (2 * gm.drag(run.x));
+      return coast > gm.distanceToEdge - 0.08;
+    });
+    if (r.payout > r.bet) wins++;
+  }
+  assert.ok(wins > 30, `only ${wins}/50 good slides`);
+});
+
+test('glacier: every run rolls a different push and different ice', () => {
+  const g = new GlacierGame({ bankroll: 1e6 });
+  const speeds = new Set();
+  for (let i = 0; i < 20; i++) {
+    speeds.add(g.deal().v.toFixed(4));
+    slide(g, () => true);
+  }
+  assert.equal(speeds.size, 20);
+});

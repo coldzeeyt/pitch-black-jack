@@ -75,6 +75,20 @@ export const CONFIG = {
       ],
     },
     {
+      id: 'glacier',
+      name: 'Glacier Edge',
+      blurb: 'Shove the penguin toward the water. Hold Space to brake. The closer to the edge he stops, the more it pays.',
+      modes: [
+        { id: 'glacier-classic', name: 'Classic', blurb: 'Steady ice. Read the slide and brake late.', rules: {} },
+        {
+          id: 'glacier-black',
+          name: 'Black Ice',
+          blurb: 'Faster pushes and wild slick patches. Harder to judge.',
+          rules: { speed: [3.3, 4.3], friction: 0.42, patchiness: 0.95 },
+        },
+      ],
+    },
+    {
       id: 'slots',
       name: 'Slots',
       blurb: "Pull the lever on the machine in the corner. Three Jacks pays 200 to 1.",

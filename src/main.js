@@ -4,6 +4,8 @@ import { HiLoGame } from './hilo.js';
 import { SlotsGame } from './slots.js';
 import { ThinIceGame } from './thinice.js';
 import { createThinIce } from './thinice3d.js';
+import { GlacierGame, GLACIER_DEFAULTS } from './glacier.js';
+import { createGlacier } from './glacier3d.js';
 import { buildScene, makeChipStack, TABLE_Y, SHOE_POS, DISCARD_POS } from './scene.js';
 import { loadCardArt, createCardMesh, disposeCardMesh } from './cards.js';
 import { Sound } from './audio.js';
@@ -39,6 +41,8 @@ const world = buildScene(renderer, { logo, logoDark });
 const { scene, camera } = world;
 const ice = createThinIce({ tableY: TABLE_Y });
 scene.add(ice.group);
+const glacier = createGlacier({ tableY: TABLE_Y, rules: GLACIER_DEFAULTS });
+scene.add(glacier.group);
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   world.resize();
@@ -297,6 +301,8 @@ function renderActions() {
         { key: 'C', id: 'cashice', label: game.canCashOut ? `Cash out ${money(game.pot)}` : 'Cash out', on: game.canCashOut },
       ];
     } else items = betItems('Wind him up');
+  } else if (mode.game === 'glacier') {
+    items = phase === 'sliding' ? [{ key: 'Hold Space', id: 'brake', label: 'BRAKE', on: true, hold: true }] : betItems('Push');
   }
   else if (phase === 'betting' || phase === 'settled')
     items = [
@@ -328,10 +334,26 @@ function renderActions() {
     b.className = 'act' + (it.on ? '' : ' off');
     b.disabled = !it.on;
     b.innerHTML = `<kbd>${it.key}</kbd>${it.label ? `<span>${it.label}</span>` : ''}`;
-    b.addEventListener('click', () => {
-      sound.start();
-      command(it.id);
-    });
+    if (it.hold) {
+      b.classList.add('hold');
+      const down = (ev) => {
+        ev.preventDefault();
+        brakeHeld = true;
+        b.classList.add('pressed');
+      };
+      const up = () => {
+        brakeHeld = false;
+        b.classList.remove('pressed');
+      };
+      b.addEventListener('pointerdown', down);
+      b.addEventListener('pointerup', up);
+      b.addEventListener('pointerleave', up);
+      b.addEventListener('pointercancel', up);
+    } else
+      b.addEventListener('click', () => {
+        sound.start();
+        command(it.id);
+      });
     bar.appendChild(b);
   }
   $('modeName').textContent = `${mode.gameName} · ${mode.name}`;
@@ -393,6 +415,7 @@ function newGame(bankroll = STARTING_MONEY) {
   if (mode.game === 'hilo') return new HiLoGame({ bankroll, bet: 25, rules: mode.rules });
   if (mode.game === 'slots') return new SlotsGame({ bankroll, bet: 5, rules: mode.rules });
   if (mode.game === 'thinice') return new ThinIceGame({ bankroll, bet: 25, rules: mode.rules });
+  if (mode.game === 'glacier') return new GlacierGame({ bankroll, bet: 25, rules: mode.rules });
   return new BlackjackGame({ bankroll, bet: 25, rules: { maxBet: 1000, ...mode.rules } });
 }
 function describe(r) {
@@ -661,6 +684,7 @@ function command(id) {
       if (game.broke) return showStatement();
       if (mode.game === 'slots') return spinSlots();
       if (mode.game === 'thinice' && game.phase === 'walking') return command('hop');
+      if (mode.game === 'glacier') return startGlacier();
       ok = game.deal();
       freshBet = false;
       if (ok && mode.game === 'hilo') return playHilo(game.flush());
@@ -743,6 +767,7 @@ const HILO_KEYS = { h: 'higher', l: 'lower', c: 'collect' };
 const ICE_KEYS = { arrowright: 'hop', w: 'hop', c: 'cashice' };
 
 window.addEventListener('keyup', (e) => {
+  if (e.key === ' ') brakeHeld = false;
   if (e.key === 'Shift') shiftHeld = false;
 });
 window.addEventListener('keydown', (e) => {
@@ -759,6 +784,11 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   const k = e.key.toLowerCase();
+  if (mode.game === 'glacier' && game.phase === 'sliding' && (k === ' ' || k === 'arrowdown')) {
+    brakeHeld = true;
+    e.preventDefault();
+    return;
+  }
   if (k === 'j') {
     toggleSong();
     return;
@@ -794,7 +824,7 @@ for (const g of CONFIG.games) {
     const entry = MODES[modeNumber++];
     const b = document.createElement('button');
     b.className = 'mode';
-    b.innerHTML = `<kbd>${modeNumber % 10}</kbd><span><strong>${m.name}</strong><small>${m.blurb}</small></span>`;
+    b.innerHTML = `${modeNumber <= 10 ? `<kbd>${modeNumber % 10}</kbd>` : '<kbd class="blank"></kbd>'}<span><strong>${m.name}</strong><small>${m.blurb}</small></span>`;
     b.addEventListener('click', (ev) => {
       ev.stopPropagation();
       begin(entry);
@@ -822,6 +852,10 @@ function begin(chosen) {
   world.focus(mode.game === 'slots' ? 'slots' : 'table');
   if (mode.game === 'thinice') ice.show();
   else ice.hide();
+  if (mode.game === 'glacier') {
+    glacier.show();
+    glacierZoneLabels();
+  } else glacier.hide();
   $('intro').classList.add('gone');
   $('hud').classList.add('show');
   renderActions();
@@ -1129,6 +1163,139 @@ async function playIce(events) {
 }
 
 // ------------------------------------------------------------------------------------------
+// Glacier Edge: shove the penguin, hold Space to brake, stop as near the water as you dare
+// ------------------------------------------------------------------------------------------
+let brakeHeld = false;
+let glacierSliding = false;
+let glacierRound = 0;
+let glacierChips = null;
+let slideSound = null;
+
+function setGlacierChips(amount) {
+  if (glacierChips) scene.remove(glacierChips);
+  glacierChips = amount > 0 ? makeChipStack(amount) : null;
+  if (glacierChips) {
+    glacierChips.position.copy(betSpot(0, 1));
+    scene.add(glacierChips);
+  }
+}
+
+/** Little tags along the payout bands: ×8 at the lip down to ×0.5. */
+function glacierZoneLabels() {
+  game.rules.zones.forEach((zn, i) => {
+    const el = labelEl('x:gz:' + i);
+    const p = glacier.zoneLabelPos(i);
+    el.dataset.x = p.x;
+    el.dataset.y = TABLE_Y + 0.02;
+    el.dataset.z = p.z;
+    el.className = 'total mult zone';
+    el.innerHTML = `<b>×${zn.pays}</b>`;
+  });
+}
+
+function glacierLive(text, cls = '') {
+  const el = labelEl('x:glive');
+  const p = glacier.at(game.run ? game.run.x : 0, TABLE_Y + 0.32);
+  el.dataset.x = p.x;
+  el.dataset.y = p.y;
+  el.dataset.z = p.z;
+  el.className = 'total ' + cls;
+  el.innerHTML = text;
+}
+
+async function startGlacier() {
+  if (glacierSliding || game.phase === 'sliding') return;
+  const run = game.deal();
+  if (!run) return;
+  busy = true;
+  freshBet = false;
+  glacierRound += 1;
+  renderActions();
+  glacier.reset();
+  glacierZoneLabels();
+  setGlacierChips(game.bet);
+  sound.chips(4);
+  sound.windUp();
+  world.jack.look(glacier.at(1.5));
+  glacierLive('<span class="meh">READY…</span>');
+  await sleep(700);
+  glacierLive('<span class="good">GO! HOLD SPACE TO BRAKE</span>');
+  sound.burst({ dur: 0.18, freq: 600, q: 0.7, gain: 0.4 });
+  slideSound = sound.slideLoop();
+  brakeHeld = false;
+  busy = false;
+  glacierSliding = true;
+  renderActions();
+}
+
+function stepGlacier(dt) {
+  const state = game.tick(dt, brakeHeld);
+  const run = game.run;
+  glacier.pose(run.x, run.v, brakeHeld && state === 'sliding', dt);
+  slideSound?.set(run.v, brakeHeld);
+  world.jack.look(glacier.at(run.x, TABLE_Y));
+  if (state === 'sliding') {
+    const d = game.distanceToEdge;
+    const zn = game.zoneFor(d);
+    glacierLive(`<span class="${zn ? 'good' : 'meh'}">${zn ? '×' + zn.pays : 'TOO FAR'}</span><b>${d.toFixed(2)} m</b>`, brakeHeld ? 'active' : '');
+    return;
+  }
+  glacierSliding = false;
+  slideSound?.stop();
+  slideSound = null;
+  endGlacier(state === 'fell');
+}
+
+async function endGlacier(fell) {
+  busy = true;
+  brakeHeld = false;
+  renderActions();
+  const r = game.lastResult;
+  if (fell) {
+    glacierLive('<span class="bad">INTO THE WATER</span>');
+    sound.splash();
+    sound.hush(3);
+    world.flicker(1.2);
+    await glacier.plunge(game.rules.length, 0.8);
+  } else {
+    glacierLive(
+      r.zone ? `<span class="good">${r.zone.name.toUpperCase()} · ×${r.zone.pays}</span><b>${r.distance.toFixed(2)} m</b>` : `<span class="bad">TOO FAR BACK</span><b>${r.distance.toFixed(2)} m</b>`,
+      r.zone && r.zone.pays >= 2 ? 'active' : '',
+    );
+    if (r.zone && r.zone.pays >= 4) sound.jingle(r.zone.pays >= 8 ? 1 : 0.5);
+  }
+  // chips: winnings slide to you, losses to Jack's rack
+  if (glacierChips) {
+    const c = glacierChips;
+    glacierChips = null;
+    if (r.payout > 0) {
+      setGlacierChips(r.payout);
+      const w = glacierChips;
+      glacierChips = null;
+      scene.remove(c);
+      sound.chips(6);
+      await sleep(500);
+      await glide(w, new THREE.Vector3(0, TABLE_Y, 3.0), { duration: 0.5 });
+      scene.remove(w);
+    } else {
+      await sleep(400);
+      await glide(c, new THREE.Vector3(0, TABLE_Y + 0.05, 0.25), { duration: 0.5, arc: 0.1 });
+      scene.remove(c);
+    }
+  }
+  const detail = fell ? 'Slid into the water' : r.zone ? `${r.zone.name}, ${r.distance.toFixed(2)} m from the edge · ×${r.zone.pays}` : `Stopped too early, ${r.distance.toFixed(2)} m back`;
+  ledger.push({ label: `Slide ${glacierRound}`, detail, amount: r.net });
+  freshBet = true;
+  world.jack.lookAtPlayer();
+  busy = false;
+  renderActions();
+  if (game.broke) {
+    await sleep(900);
+    showStatement();
+  }
+}
+
+// ------------------------------------------------------------------------------------------
 // pointing at things: a small name tag says what they are
 // ------------------------------------------------------------------------------------------
 const tip = $('tip');
@@ -1290,6 +1457,13 @@ async function restartGame() {
   iceChips = null;
   if (mode.game === 'thinice') ice.show();
   else ice.hide();
+  glacierRound = 0;
+  if (glacierChips) scene.remove(glacierChips);
+  glacierChips = null;
+  if (mode.game === 'glacier') {
+    glacier.show();
+    glacierZoneLabels();
+  } else glacier.hide();
   game = newGame();
   stats = { hands: 0, won: 0 };
   ledger = [{ label: 'Opening balance', detail: 'Chips bought at the cage', amount: STARTING_MONEY, opening: true }];
@@ -1306,6 +1480,7 @@ async function backToModes() {
   started = false;
   world.focus('table');
   ice.hide();
+  glacier.hide();
   $('hud').classList.remove('show');
   $('intro').classList.remove('gone');
 }
@@ -1320,6 +1495,8 @@ renderer.setAnimationLoop(() => {
   stepTweens(dt);
   world.update(dt, t);
   ice.update(dt, t);
+  glacier.update(dt, t);
+  if (glacierSliding) stepGlacier(dt);
   renderer.render(scene, camera);
   positionLabels();
 });

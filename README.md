@@ -54,8 +54,17 @@ it all. Collect with `C` whenever you like.
 5. **Classic**: aces high
 6. **Aces Low**: aces count as one
 
+**Thin Ice**: a wind-up tin penguin hops across ice tiles. Each safe hop raises the
+multiplier; any tile can crack and take the stake. `Space` to hop, `C` to cash out.
+7. **Easy** (1 in 12 tiles cracks) · 8. **Medium** (1 in 6) · 9. **Hard** (1 in 3)
+
+**Glacier Edge**: shove the penguin toward open water and hold `Space` to brake. Stop on the
+lip for ×8, then ×4, ×2, ×1.2, ×0.5; stop too far back and you win nothing, slide off and
+you lose. Every push and every patch of ice is rolled fresh.
+0. **Classic** · **Black Ice** (faster, wilder ice; click it on the menu)
+
 **Slots**: the three-reel machine in the corner. `Space` pulls the lever.
-7. **Three Reels**: three Jacks pays 200×; the machine returns about 93% over the long run
+**Three Reels** (click it on the menu): three Jacks pays 200×; the machine returns about 93% over the long run
 
 Games and their types live in `src/config.js`. Add your own by overriding any rule.
 
@@ -105,6 +114,9 @@ src/blackjack.js    blackjack rules engine (pure logic, emits events)
 src/hilo.js         Higher or Lower engine
 src/slots.js        slot reels, pay table and return-to-player math
 src/slotmachine.js  the 3D slot machine
+src/thinice.js      Thin Ice engine · src/thinice3d.js the ice row and the tin penguin
+src/glacier.js      Glacier Edge engine and sliding physics · src/glacier3d.js the glacier
+mockup/toon.html    a bright toon-style art mockup (not used by the game)
 src/main.js         plays events back as 3D animation; input, HUD, statement
 src/scene.js        the room, the table, the lamp, smoke, the radio
 src/jack.js         Jack: suit, fedora, legs, and arms that reach with two-bone IK

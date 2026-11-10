@@ -242,6 +242,11 @@ kbd {
 .total.mult.next { border-color: var(--gold); box-shadow: 0 0 12px rgba(201, 163, 92, 0.45); opacity: 1; }
 .total.mult.broke { color: var(--blood); border-color: var(--blood); opacity: 1; }
 
+.total.mult.zone { opacity: 0.9; }
+kbd.blank { visibility: hidden; }
+.act.hold { padding: 12px 22px 12px 10px; border-color: var(--gold); font-size: 16px; touch-action: none; }
+.act.hold.pressed { background: rgba(120, 40, 30, 0.9); box-shadow: 0 0 18px rgba(255, 90, 60, 0.5); }
+
 /* name tag when pointing at things on the table */
 #tip {
   position: fixed;

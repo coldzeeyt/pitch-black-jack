@@ -486,6 +486,32 @@ export class Sound {
     for (let i = 0; i < 8; i++) this.burst({ dur: 0.02, freq: 4200, q: 8, gain: 0.25, when: i * 0.06 });
   }
 
+  /** Belly-on-ice hiss whose pitch and loudness follow the speed; a grind when braking. */
+  slideLoop() {
+    if (!this.ctx) return null;
+    const ctx = this.ctx;
+    const src = this.noiseSource(true);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 0.8;
+    bp.frequency.value = 2000;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    src.connect(bp).connect(g).connect(this.master);
+    src.start();
+    return {
+      set: (speed, braking) => {
+        const t = ctx.currentTime;
+        bp.frequency.setTargetAtTime(braking ? 4200 : 900 + speed * 500, t, 0.05);
+        g.gain.setTargetAtTime(Math.min(0.3, speed * 0.08) * (braking ? 1.6 : 1), t, 0.05);
+      },
+      stop: () => {
+        g.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
+        src.stop(ctx.currentTime + 0.5);
+      },
+    };
+  }
+
   // ---- slot machine ----------------------------------------------------------------------------
   lever() {
     this.burst({ dur: 0.12, freq: 900, q: 2, gain: 0.35 });
