@@ -11,6 +11,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
@@ -193,25 +194,66 @@ kbd {
 #intro.gone { opacity: 0; pointer-events: none; }
 #intro .logo { height: min(150px, 22vh); opacity: 0.9; animation: breathe 5s ease-in-out infinite; }
 #intro h1 { font-family: var(--serif); font-weight: 700; font-size: clamp(36px, 7vw, 76px); letter-spacing: 0.12em; margin: 18px 0 6px; text-transform: uppercase; text-shadow: 0 0 30px rgba(201, 163, 92, 0.25); }
-#modes { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 14px 0 26px; max-width: 900px; }
-@media (max-height: 640px) { #intro .logo { display: none; } #intro h1 { margin-top: 0; } }
-.mode {
-  width: 200px;
+#modes {
   display: grid;
-  gap: 6px;
-  justify-items: center;
-  padding: 16px 14px;
-  border-radius: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  width: min(980px, 100%);
+  margin: 10px 0 22px;
+  text-align: left;
+}
+.game {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
   border: 1px solid var(--line);
-  background: rgba(12, 9, 8, 0.8);
+  background: rgba(12, 9, 8, 0.82);
+  min-width: 0;
+}
+.game h2 { margin: 0; font-family: var(--serif); letter-spacing: 0.14em; text-transform: uppercase; font-size: 18px; color: var(--gold); }
+.game > p { margin: 0 0 4px; color: var(--dim); font-size: 13px; line-height: 1.4; }
+.game .types { display: grid; gap: 6px; }
+.mode {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--ink);
   cursor: pointer;
-  transition: border-color 0.2s, transform 0.2s;
+  transition: border-color 0.2s, background 0.2s;
 }
-.mode:hover { border-color: var(--gold); transform: translateY(-2px); }
-.mode strong { font-family: var(--serif); letter-spacing: 0.12em; text-transform: uppercase; font-size: 17px; }
-.mode small { color: var(--dim); font-size: 13px; line-height: 1.4; }
+.mode:hover, .mode:focus-visible { border-color: var(--gold); background: rgba(40, 28, 16, 0.6); outline: none; }
+.mode span { display: grid; gap: 2px; min-width: 0; }
+.mode strong { font-family: var(--serif); letter-spacing: 0.08em; text-transform: uppercase; font-size: 14px; }
+.mode small { color: var(--dim); font-size: 12px; line-height: 1.35; }
+@media (max-height: 760px) { #intro .logo { display: none; } #intro h1 { margin-top: 0; } #intro .tag { margin-bottom: 14px; } }
+#intro { overflow-y: auto; justify-content: flex-start; padding-top: max(24px, 6vh); }
 .brand em { font-style: normal; color: var(--gold); margin-left: 8px; font-size: 12px; }
+
+/* name tag when pointing at things on the table */
+#tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  max-width: 240px;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(10, 8, 7, 0.92);
+  border: 1px solid var(--line);
+  pointer-events: none;
+  font-size: 13px;
+}
+#tip strong { font-family: var(--serif); letter-spacing: 0.1em; text-transform: uppercase; font-size: 12px; color: var(--gold); }
+#tip span { color: var(--ink); line-height: 1.35; }
 #intro .tag { font-family: var(--type); color: var(--dim); font-size: 18px; margin: 0 0 34px; }
 #intro .enter { font-family: var(--serif); letter-spacing: 0.3em; text-transform: uppercase; font-size: 14px; animation: pulse 2.4s ease-in-out infinite; }
 #intro .dim, #help .dim { color: var(--dim); font-size: 13px; }

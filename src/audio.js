@@ -1,5 +1,6 @@
-// All sound is synthesized with Web Audio. No files needed.
-//   - distant chatter: formant-filtered "voices" murmuring in syllables, muffled + reverb
+// Sound for the parlor, built on Web Audio.
+//   - the crowd: a real recording of a bar (assets/audio/crowd.mp3), muffled and pushed back
+//     into the room; if it can't load, synthesized murmuring voices stand in for it
 //   - room tone, lamp hum, a slow eerie drone
 //   - occasional glass clinks and far-off laughter
 //   - card / chip / shuffle foley
@@ -138,9 +139,13 @@ export class Sound {
     muffle.connect(dry).connect(this.master);
     muffle.connect(this.reverb);
     this.chatterIn = this.chatterBus;
+    this.synthVoices = ctx.createGain();
+    this.synthVoices.gain.value = 1;
+    this.synthVoices.connect(this.chatterBus);
 
     for (let i = 0; i < 7; i++) this.voices.push(this.makeVoice(i));
     this.chatterTimer = setInterval(() => this.scheduleVoices(), 250);
+    if (this.crowdFile) this.startCrowd();
   }
 
   makeVoice(i) {
@@ -174,7 +179,7 @@ export class Sound {
     osc.connect(f2);
     f1.connect(env);
     f2.connect(env);
-    env.connect(level).connect(pan).connect(this.chatterIn);
+    env.connect(level).connect(pan).connect(this.synthVoices);
     osc.start();
     return { osc, f1, f2, env, base, next: ctx.currentTime + rand(0, 3) };
   }
@@ -215,14 +220,53 @@ export class Sound {
     loop();
   }
 
+  setCrowd(file) {
+    this.crowdFile = file;
+  }
+
+  /** Loop the recorded crowd, a little muffled and spread, and retire the synthesized voices. */
+  startCrowd() {
+    const ctx = this.ctx;
+    const el = new Audio(this.crowdFile);
+    el.loop = true;
+    el.preload = 'auto';
+    const src = ctx.createMediaElementSource(el);
+    // a gentle low-pass and a touch of the room's reverb push it into the next room
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 2600;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    src.connect(lp).connect(g);
+    g.connect(this.master);
+    const send = ctx.createGain();
+    send.gain.value = 0.25;
+    g.connect(send).connect(this.reverb);
+    this.crowdGain = g;
+    el.addEventListener('playing', () => {
+      const t = ctx.currentTime;
+      g.gain.setTargetAtTime(0.75, t, 1.5);
+      this.synthVoices.gain.setTargetAtTime(0, t, 1.5);
+      clearInterval(this.chatterTimer);
+    }, { once: true });
+    el.addEventListener('error', () => console.warn('[audio] crowd recording missing; using synthesized chatter'));
+    // start somewhere different each visit
+    el.addEventListener('loadedmetadata', () => {
+      if (isFinite(el.duration)) el.currentTime = Math.random() * el.duration;
+    }, { once: true });
+    el.play().catch(() => {});
+    this.crowdEl = el;
+  }
+
   /** Make the room go quiet for a moment. */
   hush(seconds = 2.5, level = 0.08) {
     if (!this.ctx) return;
-    const g = this.chatterBus.gain;
     const t = this.ctx.currentTime;
-    g.cancelScheduledValues(t);
-    g.setTargetAtTime(level, t, 0.25);
-    g.setTargetAtTime(1, t + seconds, 1.2);
+    for (const [g, full] of [[this.chatterBus.gain, 1], this.crowdGain ? [this.crowdGain.gain, 0.75] : null].filter(Boolean)) {
+      g.cancelScheduledValues(t);
+      g.setTargetAtTime(level * full, t, 0.25);
+      g.setTargetAtTime(full, t + seconds, 1.2);
+    }
   }
 
   swell() {
@@ -382,7 +426,7 @@ export class Sound {
       this.songEl = new Audio(this.songFile);
       this.songEl.preload = 'auto';
       this.songEl.addEventListener('ended', () => {
-        if (this.chatterBus) this.chatterBus.gain.setTargetAtTime(1, this.ctx.currentTime, 1.2);
+        this.duckCrowd(false);
         this.onSongChange?.(false);
       });
       this.songEl.addEventListener('pause', () => this.onSongChange?.(false));
@@ -398,19 +442,99 @@ export class Sound {
     this.songEl.currentTime = this.songEl.ended ? 0 : this.songEl.currentTime;
     this.songEl.play().catch(() => this.onSongChange?.(false));
     // the room quiets down under the music
-    if (this.chatterBus) this.chatterBus.gain.setTargetAtTime(0.3, this.ctx.currentTime, 0.6);
+    this.duckCrowd(true);
+  }
+
+  duckCrowd(down) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    if (this.chatterBus) this.chatterBus.gain.setTargetAtTime(down ? 0.3 : 1, t, down ? 0.6 : 1.2);
+    if (this.crowdGain) this.crowdGain.gain.setTargetAtTime(down ? 0.18 : 0.75, t, down ? 0.6 : 1.2);
   }
 
   stopSong() {
     if (!this.songEl) return;
     this.songEl.pause();
-    if (this.chatterBus) this.chatterBus.gain.setTargetAtTime(1, this.ctx.currentTime, 1.2);
+    this.duckCrowd(false);
   }
 
   toggleSong() {
     if (this.songPlaying) this.stopSong();
     else this.playSong();
     return this.songPlaying;
+  }
+
+  // ---- slot machine ----------------------------------------------------------------------------
+  lever() {
+    this.burst({ dur: 0.12, freq: 900, q: 2, gain: 0.35 });
+    this.burst({ dur: 0.25, freq: 160, q: 1, gain: 0.5, type: 'lowpass', when: 0.18 });
+  }
+
+  /** Mechanical whirr while the reels turn; returns a function that stops it. */
+  reelWhirr(seconds) {
+    if (!this.ctx) return null;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const src = this.noiseSource(true);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1400;
+    bp.Q.value = 3;
+    const am = ctx.createGain();
+    am.gain.value = 0;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 38; // the clicking of the reel stops going past
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.5;
+    lfo.connect(lfoGain).connect(am.gain);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.18, t + 0.1);
+    src.connect(bp).connect(am).connect(g).connect(this.master);
+    src.start(t);
+    lfo.start(t);
+    let stopped = false;
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      const n = ctx.currentTime;
+      g.gain.setTargetAtTime(0, n, 0.05);
+      lfo.frequency.setTargetAtTime(8, n, 0.2);
+      src.stop(n + 0.4);
+      lfo.stop(n + 0.4);
+    };
+    setTimeout(stop, seconds * 1000 + 600);
+    return stop;
+  }
+
+  reelStop() {
+    this.burst({ dur: 0.06, freq: 700, q: 3, gain: 0.45 });
+    this.burst({ dur: 0.12, freq: 200, q: 1, gain: 0.35, type: 'lowpass', when: 0.01 });
+  }
+
+  /** A little bell run for a win; bigger wins go higher and longer. */
+  jingle(level = 0) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const base = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568];
+    const n = 4 + Math.round(level * 10);
+    for (let i = 0; i < n; i++) {
+      const t = ctx.currentTime + i * 0.08;
+      const f = base[i % base.length] * (i >= base.length ? 2 : 1);
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g);
+      g.connect(this.master);
+      g.connect(this.reverb);
+      o.start(t);
+      o.stop(t + 0.55);
+    }
+    this.chips(4 + Math.round(level * 12));
   }
 
   toggleMute() {

@@ -22,6 +22,7 @@ your account statement, with the money visibly leaving or entering your account.
 
 | Key | Action |
 |-----|--------|
+| `H` / `L` / `C` | Higher or Lower: call higher, call lower, collect |
 | `H` | Hit |
 | `S` | Stand |
 | `D` | Double down |
@@ -37,16 +38,26 @@ your account statement, with the money visibly leaving or entering your account.
 | `M` | Mute |
 | `?` | Rules and keys |
 
-## Game modes
+## Games
 
-Pick one on the start screen (`1`–`4`):
+Pick one on the start screen with a click or its number key:
 
-- **Classic**: full Vegas rules, below
-- **Hit & Stand**: only hit and stand
-- **Baby**: Hit & Stand, but the buttons say *get anofer cawd* and *dont get anofer cawd*
-- **Single Deck**: one deck, shuffled often, no surrender
+**Blackjack**
+1. **Classic**: full Vegas rules, below
+2. **Hit & Stand**: only hit and stand
+3. **Baby**: Hit & Stand, but the buttons say *get anofer cawd* and *dont get anofer cawd*
+4. **Single Deck**: one deck, shuffled often, no surrender
 
-Modes live in `src/config.js`. Add your own by overriding any rule.
+**Higher or Lower**: Jack turns a card and you call the next one. Each right call multiplies
+your pot by its odds (long shots pay more), the same rank is a push, and one wrong call loses
+it all. Collect with `C` whenever you like.
+5. **Classic**: aces high
+6. **Aces Low**: aces count as one
+
+**Slots**: the three-reel machine in the corner. `Space` pulls the lever.
+7. **Three Reels**: three Jacks pays 200×; the machine returns about 93% over the long run
+
+Games and their types live in `src/config.js`. Add your own by overriding any rule.
 
 ## House rules
 
@@ -76,6 +87,9 @@ also plays when the account statement rolls at the end. Listen on
 
 The song file, the starting money, and the Spotify link are set in `src/config.js`.
 
+The room's crowd is a looped recording of a real bar (`assets/audio/crowd.mp3`, 12 minutes,
+crossfaded so the loop has no seam). If it's missing, the game falls back to synthesized murmuring.
+
 ## Your art
 
 The cards use the hand-drawn master sheet in `assets/cards/master.png`. The game slices it,
@@ -87,7 +101,10 @@ separate files per card.
 
 ```
 index.html          page, HUD, intro and statement screens
-src/blackjack.js    rules engine (pure logic, emits events)
+src/blackjack.js    blackjack rules engine (pure logic, emits events)
+src/hilo.js         Higher or Lower engine
+src/slots.js        slot reels, pay table and return-to-player math
+src/slotmachine.js  the 3D slot machine
 src/main.js         plays events back as 3D animation; input, HUD, statement
 src/scene.js        the room, the table, the lamp, smoke, the radio
 src/jack.js         Jack: suit, fedora, legs, and arms that reach with two-bone IK

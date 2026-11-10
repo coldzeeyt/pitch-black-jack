@@ -24,7 +24,7 @@
       <div class="stats">
         <div><small>Bankroll</small><strong id="bankroll">$0</strong></div>
         <div><small>Bet</small><strong id="bet">$0</strong></div>
-        <div class="shoe-meter" title="Cards left in the shoe"><small>Shoe</small><span id="shoe"></span></div>
+        <div class="shoe-meter" id="shoeBox" title="How many cards are left before Jack reshuffles"><small>Cards left</small><span id="shoe"></span></div>
         <button id="songBtn" class="song" title="Play my song (J)"><span>♫ DEALER</span></button>
         <a id="spotify" class="song" target="_blank" rel="noopener" hidden>Open on Spotify</a>
         <button id="mute" title="Mute (M)" aria-label="Mute">🔈</button>
@@ -33,6 +33,8 @@
     </header>
     <nav id="actions"></nav>
   </div>
+
+  <div id="tip" hidden></div>
 
   <div id="help">
     <div class="card">
@@ -47,6 +49,17 @@
         <li>Late surrender gives back half your bet</li>
         <li><b>Hit &amp; Stand</b> and <b>Baby</b> modes: only hit and stand. <b>Single Deck</b>: one deck, no surrender</li>
         <li>You start with $1,000. Bet $5 to $1,000 a hand; a win pays your bet</li>
+      </ul>
+      <h2>Higher or Lower</h2>
+      <ul>
+        <li>Jack turns a card. Call whether the next is higher (<kbd>H</kbd>) or lower (<kbd>L</kbd>)</li>
+        <li>Each right call multiplies your pot by its odds: long shots pay more</li>
+        <li>Same rank is a push. Collect (<kbd>C</kbd>) any time after a right call; one wrong call loses the pot</li>
+      </ul>
+      <h2>Slots</h2>
+      <ul>
+        <li>Press <kbd>Space</kbd> to pull the lever. Wins pay on the red line</li>
+        <li>Three Jacks 200×, three 7s 50×, three BARs 20×, three of a suit 11×, two Jacks 10×, 7s and BARs 10×, all red or all black 4×, one Jack 1×</li>
       </ul>
       <h2>Keys</h2>
       <div class="keys">

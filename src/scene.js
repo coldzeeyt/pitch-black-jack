@@ -2,6 +2,7 @@
 // patrons murmuring in the dark, and Jack.
 import * as THREE from 'three';
 import { createJack } from './jack.js';
+import { buildSlotMachine } from './slotmachine.js';
 
 export const TABLE_Y = 0.92; // felt height
 const RX = 3.2; // table half-width
@@ -260,15 +261,20 @@ export function makeChipStack(amount) {
 
 // ---------------------------------------------------------------------------------------------
 
-export function buildScene(renderer, { logo } = {}) {
+export function buildScene(renderer, { logo, logoDark } = {}) {
   const scene = new THREE.Scene();
   const fogColor = new THREE.Color(0x120e0c);
   scene.background = fogColor;
   scene.fog = new THREE.FogExp2(fogColor, 0.085);
 
   const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.05, 60);
-  const camBase = new THREE.Vector3(0, 2.05, 3.35);
-  const camLook = new THREE.Vector3(0, 1.08, 0.5);
+  const VIEWS = {
+    table: { pos: new THREE.Vector3(0, 2.05, 3.35), look: new THREE.Vector3(0, 1.08, 0.5) },
+    slots: { pos: new THREE.Vector3(-2.45, 1.5, 3.05), look: new THREE.Vector3(-4.4, 1.12, 2.95) },
+  };
+  const camBase = VIEWS.table.pos.clone();
+  const camLook = VIEWS.table.look.clone();
+  let view = 'table';
   camera.position.copy(camBase);
   camera.lookAt(camLook);
 
@@ -460,6 +466,12 @@ export function buildScene(renderer, { logo } = {}) {
   radio.add(radioGlow);
   let radioOn = false;
   let radioHover = false;
+
+  // --- the slot machine in the corner ----------------------------------------------------
+  const slots = buildSlotMachine({ logo, logoDark });
+  slots.group.position.set(-4.4, 0, 2.95);
+  slots.group.rotation.y = Math.PI / 2;
+  scene.add(slots.group);
 
   // --- the lamp ----------------------------------------------------------------------------
   const lampGroup = new THREE.Group();
@@ -728,14 +740,19 @@ export function buildScene(renderer, { logo } = {}) {
     }
 
     jack.update(dt, t);
+    slots.update(dt, t);
+    const v = VIEWS[view];
+    const k = 1 - Math.pow(0.12, dt);
+    camBase.lerp(v.pos, k);
+    camLook.lerp(v.look, k);
 
     // camera: slow breathing sway + a little mouse parallax
     camera.position.set(
-      camBase.x + Math.sin(t * 0.25) * 0.03 + mouse.x * 0.22,
+      camBase.x + Math.sin(t * 0.25) * 0.03 + mouse.x * (view === 'table' ? 0.22 : 0.06),
       camBase.y + Math.sin(t * 0.4) * 0.015 - mouse.y * 0.08,
       camBase.z,
     );
-    camera.lookAt(camLook.x + mouse.x * 0.15, camLook.y - mouse.y * 0.1, camLook.z);
+    camera.lookAt(camLook.x + mouse.x * (view === 'table' ? 0.15 : 0.04), camLook.y - mouse.y * (view === 'table' ? 0.1 : 0.03), camLook.z);
   }
 
   function resize() {
@@ -765,6 +782,25 @@ export function buildScene(renderer, { logo } = {}) {
       },
       stare() {},
     },
+    slots,
+    /** Move the camera between the table and the slot machine. */
+    focus(name) {
+      if (VIEWS[name]) view = name;
+      jack.look(name === 'slots' ? VIEWS.slots.pos : VIEWS.table.pos);
+    },
+    /** Things on the table that show a name tag when you point at them. */
+    props: [
+      { object: shoe, name: 'Card shoe', info: 'Holds the shuffled decks. Jack deals every card from here.' },
+      { object: discard, name: 'Discard tray', info: 'Used cards pile up here until the shoe is reshuffled.' },
+      { object: discardPile, name: 'Discard tray', info: 'Used cards pile up here until the shoe is reshuffled.' },
+      { object: tray, name: "Jack's chip rack", info: "The house's money. Lost bets slide in here." },
+      { object: radio, name: 'Radio', info: 'Click to play DEALER.' },
+      { object: ashtray, name: 'Ashtray', info: 'Still smouldering.' },
+      { object: cig, name: 'Ashtray', info: 'Still smouldering.' },
+      { object: tumbler, name: 'Whiskey', info: "Someone left in a hurry." },
+      { object: slots.group, name: 'Slot machine', info: 'Pick Slots on the start screen to play it.' },
+      { object: jack.object, name: 'Jack', info: 'Your dealer. Nobody has seen his face.' },
+    ],
     radio: {
       object: radio,
       setPlaying(on) {

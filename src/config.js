@@ -10,34 +10,78 @@ export const CONFIG = {
     playOnEnd: true,
   },
 
-  // Game modes, picked on the start screen. `rules` overrides the defaults in src/blackjack.js.
-  modes: [
+  // Games on the start screen, each with its own types. `rules` overrides that game's defaults
+  // (src/blackjack.js, src/hilo.js, src/slots.js). Number keys pick types in the order listed.
+  games: [
     {
-      id: 'classic',
-      name: 'Classic',
-      blurb: 'Vegas Strip rules. Hit, stand, double, split, insurance and surrender.',
-      rules: {},
+      id: 'blackjack',
+      name: 'Blackjack',
+      blurb: 'Beat Jack to 21 without going over.',
+      modes: [
+        {
+          id: 'classic',
+          name: 'Classic',
+          blurb: 'Vegas Strip rules: hit, stand, double, split, insurance and surrender.',
+          rules: {},
+        },
+        {
+          id: 'simple',
+          name: 'Hit & Stand',
+          blurb: 'Just the basics. No doubling, splitting, insurance or surrender.',
+          rules: { allowDouble: false, allowSplit: false, lateSurrender: false, insurance: false },
+        },
+        {
+          id: 'baby',
+          name: 'Baby',
+          blurb: 'Hit & Stand, but Jack speaks your language. Get anofer cawd?',
+          rules: { allowDouble: false, allowSplit: false, lateSurrender: false, insurance: false },
+          labels: { hit: 'get anofer cawd', stand: 'dont get anofer cawd' },
+        },
+        {
+          id: 'single',
+          name: 'Single Deck',
+          blurb: 'One deck, shuffled often. No surrender. Count the cards if you dare.',
+          rules: { decks: 1, penetration: 0.6, lateSurrender: false },
+        },
+      ],
     },
     {
-      id: 'simple',
-      name: 'Hit & Stand',
-      blurb: 'Just the basics. Hit or stand: no doubling, splitting, insurance or surrender.',
-      rules: { allowDouble: false, allowSplit: false, lateSurrender: false, insurance: false },
+      id: 'hilo',
+      name: 'Higher or Lower',
+      blurb: 'Call the next card. Each right call grows the pot. Collect before you guess wrong.',
+      modes: [
+        {
+          id: 'hilo-classic',
+          name: 'Classic',
+          blurb: 'Aces are high. Long-shot calls pay more.',
+          rules: { aceHigh: true },
+        },
+        {
+          id: 'hilo-acelow',
+          name: 'Aces Low',
+          blurb: 'Aces count as one, so they sit at the bottom.',
+          rules: { aceHigh: false },
+        },
+      ],
     },
     {
-      id: 'baby',
-      name: 'Baby',
-      blurb: 'Hit & Stand, but Jack speaks your language. Get anofer cawd?',
-      rules: { allowDouble: false, allowSplit: false, lateSurrender: false, insurance: false },
-      labels: { hit: 'get anofer cawd', stand: 'dont get anofer cawd' },
-    },
-    {
-      id: 'single',
-      name: 'Single Deck',
-      blurb: 'One deck, shuffled often. No surrender. Count the cards if you dare.',
-      rules: { decks: 1, penetration: 0.6, lateSurrender: false },
+      id: 'slots',
+      name: 'Slots',
+      blurb: "Pull the lever on the machine in the corner. Three Jacks pays 200 to 1.",
+      modes: [
+        {
+          id: 'slots-classic',
+          name: 'Three Reels',
+          blurb: 'Classic three-reel machine. Bet $1 to $100 a spin.',
+          rules: {},
+        },
+      ],
     },
   ],
+
+  // The room's background crowd: a recording of a real bar, looped. Set to '' to use the
+  // synthesized murmur instead.
+  crowd: 'assets/audio/crowd.mp3',
 
   // Paste your Spotify track link here (e.g. 'https://open.spotify.com/track/...')
   // and an "Open on Spotify" button appears in the game. Leave empty to hide it.

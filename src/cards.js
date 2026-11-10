@@ -137,35 +137,64 @@ function trimToBorder(img, sx, sy, sw, sh) {
     /* tainted canvas: keep the full cell */
   }
   if (maxX - minX < w * 0.3 || maxY - minY < h * 0.3) return cell; // no clear outline found
+  // 1) crop to the drawn outline
+  const ow = maxX - minX + 1;
+  const oh = maxY - minY + 1;
+  const outline = document.createElement('canvas');
+  outline.width = ow;
+  outline.height = oh;
+  const lctx = outline.getContext('2d', { willReadFrequently: true });
+  lctx.drawImage(cell, minX, minY, ow, oh, 0, 0, ow, oh);
+  // 2) measure how thick the outline is, then cut just inside it so the card is clean white
+  const od = lctx.getImageData(0, 0, ow, oh).data;
+  const isDark = (x, y) => {
+    const i = (y * ow + x) * 4;
+    return od[i + 3] > 128 && od[i] + od[i + 1] + od[i + 2] < 384;
+  };
+  const run = (x0, y0, dx, dy) => {
+    let n = 0;
+    let x = x0, y = y0;
+    while (x >= 0 && y >= 0 && x < ow && y < oh && (isDark(x, y) || n < 1)) {
+      n++;
+      x += dx;
+      y += dy;
+      if (n > ow / 6) break;
+    }
+    return n;
+  };
+  const midY = Math.floor(oh / 2);
+  const midX = Math.floor(ow / 2);
+  const thick = Math.max(run(0, midY, 1, 0), run(ow - 1, midY, -1, 0), run(midX, oh - 1, 0, -1));
+  const inset = Math.ceil(thick + Math.max(2, ow * 0.01));
   const out = document.createElement('canvas');
-  out.width = maxX - minX + 1;
-  out.height = maxY - minY + 1;
-  const octx = out.getContext('2d');
-  octx.fillStyle = INK; // corners outside the outline blend into the black edge
-  octx.fillRect(0, 0, out.width, out.height);
-  octx.drawImage(cell, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
-  blackenOutsideCorners(octx, out.width, out.height);
+  out.width = ow - inset * 2;
+  out.height = oh - inset * 2;
+  const octx = out.getContext('2d', { willReadFrequently: true });
+  octx.drawImage(outline, inset, inset, out.width, out.height, 0, 0, out.width, out.height);
+  whitenCorners(octx, out.width, out.height);
   return out;
 }
 
-/** Paints the background outside the card's rounded outline (in the corners) black. */
-function blackenOutsideCorners(ctx, w, h) {
+/** Paints whatever is left of the rounded outline in the four corners with the card's paper colour. */
+function whitenCorners(ctx, w, h) {
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
-  const seen = new Uint8Array(w * h);
-  const stack = [0, (w - 1), (h - 1) * w, (h - 1) * w + w - 1];
-  const light = (i) => d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2] >= 240 || d[i * 4 + 3] < 128;
-  while (stack.length) {
-    const p = stack.pop();
-    if (seen[p] || !light(p)) continue;
-    seen[p] = 1;
-    d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = 20;
-    d[p * 4 + 3] = 255;
-    const x = p % w;
-    if (x > 0) stack.push(p - 1);
-    if (x < w - 1) stack.push(p + 1);
-    if (p >= w) stack.push(p - w);
-    if (p < w * (h - 1)) stack.push(p + w);
+  // paper colour, sampled from a quiet spot on the left edge halfway down
+  const si = (Math.floor(h * 0.5) * w + Math.floor(w * 0.06)) * 4;
+  const paper = [d[si], d[si + 1], d[si + 2]];
+  const r = Math.round(w * 0.16);
+  for (const [cx, cy, sx, sy] of [[r, r, 0, 0], [w - r, r, w - r, 0], [r, h - r, 0, h - r], [w - r, h - r, w - r, h - r]]) {
+    for (let y = sy; y < sy + r; y++) {
+      for (let x = sx; x < sx + r; x++) {
+        if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > r - 1) {
+          const i = (y * w + x) * 4;
+          d[i] = paper[0];
+          d[i + 1] = paper[1];
+          d[i + 2] = paper[2];
+          d[i + 3] = 255;
+        }
+      }
+    }
   }
   ctx.putImageData(img, 0, 0);
 }
@@ -192,11 +221,13 @@ function drawCover(ctx, img) {
 }
 
 function placeholderBorder(ctx, fill) {
-  ctx.fillStyle = INK;
+  // clean card stock edge to edge, with a faint printed frame line
+  ctx.fillStyle = fill;
   ctx.fillRect(0, 0, TEX_W, TEX_H);
   roundRectPath(ctx, BORDER, BORDER, TEX_W - BORDER * 2, TEX_H - BORDER * 2, TEX_R - BORDER * 0.6);
-  ctx.fillStyle = fill;
-  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
 function grime(ctx, amount) {
@@ -385,7 +416,7 @@ function geometries() {
   return sharedGeo;
 }
 
-const edgeMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+const edgeMaterial = new THREE.MeshStandardMaterial({ color: 0xefebe2, roughness: 0.8 }); // white card stock edge
 
 /** A card object. Face-up when rotation.z === 0, face-down when rotation.z === PI. */
 export function createCardMesh(card) {
