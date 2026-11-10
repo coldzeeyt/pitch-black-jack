@@ -512,6 +512,42 @@ export class Sound {
     };
   }
 
+  // ---- roulette, race, plinko ---------------------------------------------------------------------
+  ballClick(final = false) {
+    this.burst({ dur: final ? 0.08 : 0.03, freq: final ? 2400 : 3200 + Math.random() * 1500, q: 6, gain: final ? 0.45 : 0.25 });
+    if (final) this.burst({ dur: 0.1, freq: 400, q: 1, gain: 0.25, type: 'lowpass', when: 0.02 });
+  }
+
+  pegTick(row = 0) {
+    this.burst({ dur: 0.025, freq: 2200 + row * 150 + Math.random() * 300, q: 8, gain: 0.3 });
+  }
+
+  /** A starter's whistle, a little far away. */
+  whistle() {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.frequency.setValueAtTime(2300, t);
+    const trill = ctx.createOscillator();
+    trill.frequency.value = 28;
+    const tg = ctx.createGain();
+    tg.gain.value = 120;
+    trill.connect(tg).connect(o.frequency);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.12, t + 0.03);
+    g.gain.setValueAtTime(0.12, t + 0.45);
+    g.gain.linearRampToValueAtTime(0, t + 0.55);
+    o.connect(g);
+    g.connect(this.master);
+    g.connect(this.reverb);
+    o.start(t);
+    trill.start(t);
+    o.stop(t + 0.6);
+    trill.stop(t + 0.6);
+  }
+
   // ---- slot machine ----------------------------------------------------------------------------
   lever() {
     this.burst({ dur: 0.12, freq: 900, q: 2, gain: 0.35 });

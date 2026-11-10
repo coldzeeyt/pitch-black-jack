@@ -46,6 +46,15 @@ export const CONFIG = {
       ],
     },
     {
+      id: 'roulette',
+      name: 'Roulette',
+      blurb: 'Jack spins the wheel. Put chips on numbers, colours, dozens or columns.',
+      modes: [
+        { id: 'roulette-eu', name: 'European', blurb: 'One green zero. The better odds.', rules: { wheel: 'european' } },
+        { id: 'roulette-us', name: 'American', blurb: 'Zero and double zero. The house likes this one.', rules: { wheel: 'american' } },
+      ],
+    },
+    {
       id: 'hilo',
       name: 'Higher or Lower',
       blurb: 'Call the next card. Each right call grows the pot. Collect before you guess wrong.',
@@ -62,6 +71,15 @@ export const CONFIG = {
           blurb: 'Aces count as one, so they sit at the bottom.',
           rules: { aceHigh: false },
         },
+      ],
+    },
+    {
+      id: 'race',
+      name: 'Penguin Race',
+      blurb: 'Wind-up penguins waddle across the felt. Back one and hope it holds its nerve.',
+      modes: [
+        { id: 'race-4', name: 'Four Penguins', blurb: '1 in 4 chance. Pays 3.6× your bet.', rules: { racers: 4, pays: 3.6 } },
+        { id: 'race-6', name: 'Six Penguins', blurb: '1 in 6 chance. Pays 5.4× your bet.', rules: { racers: 6, pays: 5.4 } },
       ],
     },
     {
@@ -86,6 +104,16 @@ export const CONFIG = {
           blurb: 'Faster pushes and wild slick patches. Harder to judge.',
           rules: { speed: [3.1, 3.9], friction: 0.42, patchiness: 0.95, brake: 3.6 },
         },
+      ],
+    },
+    {
+      id: 'plinko',
+      name: 'Plinko',
+      blurb: 'Drop a chip down the peg board in the corner. The edges pay big; the middle rarely does.',
+      modes: [
+        { id: 'plinko-low', name: 'Low Risk', blurb: 'Small, steady wins. Up to 8×.', rules: { risk: 'low' } },
+        { id: 'plinko-medium', name: 'Medium Risk', blurb: 'Up to 30× at the edges.', rules: { risk: 'medium' } },
+        { id: 'plinko-high', name: 'High Risk', blurb: 'Mostly losses. 90× if you hit an edge.', rules: { risk: 'high' } },
       ],
     },
     {

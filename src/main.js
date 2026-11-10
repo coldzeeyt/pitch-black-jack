@@ -6,6 +6,7 @@ import { ThinIceGame } from './thinice.js';
 import { createThinIce } from './thinice3d.js';
 import { GlacierGame, GLACIER_DEFAULTS } from './glacier.js';
 import { createGlacier } from './glacier3d.js';
+import { createExtras } from './extras.js';
 import { buildScene, makeChipStack, TABLE_Y, SHOE_POS, DISCARD_POS } from './scene.js';
 import { loadCardArt, createCardMesh, disposeCardMesh } from './cards.js';
 import { Sound } from './audio.js';
@@ -43,6 +44,50 @@ const ice = createThinIce({ tableY: TABLE_Y });
 scene.add(ice.group);
 const glacier = createGlacier({ tableY: TABLE_Y, rules: GLACIER_DEFAULTS });
 scene.add(glacier.group);
+// Roulette, Penguin Race and Plinko live in extras.js and talk to the rest through this context.
+const extrasCtx = {
+  scene,
+  world,
+  sound: null, // filled in once the sound engine exists (below)
+  sleep,
+  glide,
+  labelEl: (k) => labelEl(k),
+  dropLabel: (k) => {
+    const el = labelEls.get(k);
+    if (el) {
+      el.remove();
+      labelEls.delete(k);
+    }
+  },
+  money,
+  makeChipStack,
+  betSpot: (i, n) => betSpot(i, n),
+  TABLE_Y,
+  game: () => game,
+  isBusy: () => busy,
+  setBusy: (b) => {
+    busy = b;
+  },
+  render: () => renderActions(),
+  record: (label, detail, amount) => {
+    ledger.push({ label, detail, amount });
+    freshBet = true;
+  },
+  afterRound: async () => {
+    if (game.broke) {
+      await sleep(900);
+      showStatement();
+    }
+  },
+};
+const extras = createExtras(extrasCtx);
+/** Show the props for the chosen game and put the others away. */
+function enterExtras() {
+  for (const [id, ex] of Object.entries(extras)) {
+    if (id === mode.game) ex.enter(game);
+    else ex.leave();
+  }
+}
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   world.resize();
@@ -301,6 +346,8 @@ function renderActions() {
         { key: 'C', id: 'cashice', label: game.canCashOut ? `Cash out ${money(game.pot)}` : 'Cash out', on: game.canCashOut },
       ];
     } else items = betItems('Wind him up');
+  } else if (extras[mode.game]) {
+    items = extras[mode.game].actions(game, betItems);
   } else if (mode.game === 'glacier') {
     items = phase === 'sliding' ? [{ key: 'Hold Space', id: 'brake', label: 'BRAKE', on: true, hold: true }] : betItems('Push');
   }
@@ -370,6 +417,7 @@ function renderActions() {
 // game + event playback
 // ------------------------------------------------------------------------------------------
 const sound = new Sound();
+extrasCtx.sound = sound;
 sound.setSong(CONFIG.song.file);
 if (CONFIG.crowd) sound.setCrowd(CONFIG.crowd);
 sound.onSongChange = (on) => {
@@ -416,6 +464,7 @@ function newGame(bankroll = STARTING_MONEY) {
   if (mode.game === 'slots') return new SlotsGame({ bankroll, bet: 5, rules: mode.rules });
   if (mode.game === 'thinice') return new ThinIceGame({ bankroll, bet: 25, rules: mode.rules });
   if (mode.game === 'glacier') return new GlacierGame({ bankroll, bet: 25, rules: mode.rules });
+  if (extras[mode.game]) return extras[mode.game].create(bankroll, mode.rules);
   return new BlackjackGame({ bankroll, bet: 25, rules: { maxBet: 1000, ...mode.rules } });
 }
 function describe(r) {
@@ -639,6 +688,7 @@ function command(id) {
     return;
   }
   if (busy || !started) return;
+  if (extras[mode.game] && id !== 'end' && extras[mode.game].command(id)) return;
   const step = shiftHeld ? 25 : 5;
   let ok = false;
   switch (id) {
@@ -806,7 +856,7 @@ window.addEventListener('keydown', (e) => {
     $('help').classList.remove('show');
     return;
   }
-  const id = (mode.game === 'hilo' ? HILO_KEYS[k] : mode.game === 'thinice' ? ICE_KEYS[k] : undefined) ?? KEYMAP[k];
+  const id = (mode.game === 'hilo' ? HILO_KEYS[k] : mode.game === 'thinice' ? ICE_KEYS[k] : extras[mode.game]?.keys[k]) ?? KEYMAP[k];
   if (id) {
     e.preventDefault();
     if (e.repeat && id !== 'betUp' && id !== 'betDown') return;
@@ -849,7 +899,8 @@ function begin(chosen) {
     game = newGame();
   } else if (!game) game = newGame();
   freshBet = true;
-  world.focus(mode.game === 'slots' ? 'slots' : 'table');
+  world.focus(extras[mode.game]?.view ?? (mode.game === 'slots' ? 'slots' : 'table'));
+  enterExtras();
   if (mode.game === 'thinice') ice.show();
   else ice.hide();
   if (mode.game === 'glacier') {
@@ -1465,6 +1516,8 @@ async function restartGame() {
     glacierZoneLabels();
   } else glacier.hide();
   game = newGame();
+  for (const ex of Object.values(extras)) ex.reset();
+  enterExtras();
   stats = { hands: 0, won: 0 };
   ledger = [{ label: 'Opening balance', detail: 'Chips bought at the cage', amount: STARTING_MONEY, opening: true }];
   freshBet = true;
@@ -1481,6 +1534,7 @@ async function backToModes() {
   world.focus('table');
   ice.hide();
   glacier.hide();
+  for (const ex of Object.values(extras)) ex.leave();
   $('hud').classList.remove('show');
   $('intro').classList.remove('gone');
 }
@@ -1496,6 +1550,7 @@ renderer.setAnimationLoop(() => {
   world.update(dt, t);
   ice.update(dt, t);
   glacier.update(dt, t);
+  for (const ex of Object.values(extras)) ex.update(dt, t);
   if (glacierSliding) stepGlacier(dt);
   renderer.render(scene, camera);
   positionLabels();

@@ -44,33 +44,21 @@ your account statement, with the money visibly leaving or entering your account.
 
 ## Games
 
-Pick one on the start screen with a click or its number key:
+Pick one on the start screen. Number keys 1–9 and 0 pick the first ten types; click the rest.
 
-**Blackjack**
-1. **Classic**: full Vegas rules, below
-2. **Hit & Stand**: only hit and stand
-3. **Baby**: Hit & Stand, but the buttons say *get anofer cawd* and *dont get anofer cawd*
-4. **Single Deck**: one deck, shuffled often, no surrender
+| Game | Types | How it plays |
+|------|-------|--------------|
+| **Blackjack** | Classic · Hit & Stand · Baby · Single Deck | Real casino rules (below). *Baby* renames the buttons *get anofer cawd* / *dont get anofer cawd*. |
+| **Roulette** | European · American | Pick a chip with `1`–`5`, click the layout to place bets, `Space` spins. Numbers pay 35:1, dozens and columns 2:1, red/black, odd/even and 1–18/19–36 even money. House edge 2.7% (European) or 5.26% (American). |
+| **Higher or Lower** | Classic · Aces Low | Call the next card with `H` / `L`. Each right call multiplies the pot by its odds; collect with `C`. |
+| **Penguin Race** | Four Penguins · Six Penguins | `←` `→` pick a penguin, `Space` starts. Every penguin has the same chance; pays 3.6× or 5.4×. |
+| **Thin Ice** | Easy · Medium · Hard | A wind-up penguin hops across ice tiles. Each hop raises the multiplier; any tile can crack. `Space` hops, `C` cashes out. |
+| **Glacier Edge** | Classic · Black Ice | Shove the penguin toward the water and hold `Space` to brake. ×8 on the lip down to ×0.5; slide off and you lose. |
+| **Plinko** | Low · Medium · High Risk | `Space` drops a chip down 12 rows of pegs into one of 13 slots. Edges pay up to 8×, 30× or 90×. |
+| **Slots** | Three Reels | `Space` pulls the lever. Three Jacks pays 200×; returns about 93% over the long run. |
 
-**Higher or Lower**: Jack turns a card and you call the next one. Each right call multiplies
-your pot by its odds (long shots pay more), the same rank is a push, and one wrong call loses
-it all. Collect with `C` whenever you like.
-5. **Classic**: aces high
-6. **Aces Low**: aces count as one
-
-**Thin Ice**: a wind-up tin penguin hops across ice tiles. Each safe hop raises the
-multiplier; any tile can crack and take the stake. `Space` to hop, `C` to cash out.
-7. **Easy** (1 in 12 tiles cracks) · 8. **Medium** (1 in 6) · 9. **Hard** (1 in 3)
-
-**Glacier Edge**: shove the penguin toward open water and hold `Space` to brake. Stop on the
-lip for ×8, then ×4, ×2, ×1.2, ×0.5; stop too far back and you win nothing, slide off and
-you lose. Every push and every patch of ice is rolled fresh.
-0. **Classic** · **Black Ice** (faster, wilder ice; click it on the menu)
-
-**Slots**: the three-reel machine in the corner. `Space` pulls the lever.
-**Three Reels** (click it on the menu): three Jacks pays 200×; the machine returns about 93% over the long run
-
-Games and their types live in `src/config.js`. Add your own by overriding any rule.
+Every game's odds are checked by the tests (`npm test`). Games and their types live in
+`src/config.js`; add your own by overriding any rule.
 
 ## House rules
 
@@ -120,6 +108,10 @@ src/slots.js        slot reels, pay table and return-to-player math
 src/slotmachine.js  the 3D slot machine
 src/thinice.js      Thin Ice engine · src/thinice3d.js the ice row and the tin penguin
 src/glacier.js      Glacier Edge engine and sliding physics · src/glacier3d.js the glacier
+src/roulette.js     roulette rules · src/roulette3d.js the wheel
+src/race.js         Penguin Race odds and race plans · src/race3d.js the track
+src/plinko.js       Plinko odds · src/plinko3d.js the peg board
+src/extras.js       controllers for Roulette, Penguin Race and Plinko
 mockup/toon.html    a bright toon-style art mockup (not used by the game)
 src/main.js         plays events back as 3D animation; input, HUD, statement
 src/scene.js        the room, the table, the lamp, smoke, the radio

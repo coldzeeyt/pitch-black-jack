@@ -271,6 +271,8 @@ export function buildScene(renderer, { logo, logoDark } = {}) {
   const VIEWS = {
     table: { pos: new THREE.Vector3(0, 2.05, 3.35), look: new THREE.Vector3(0, 1.08, 0.5) },
     slots: { pos: new THREE.Vector3(-2.45, 1.5, 3.05), look: new THREE.Vector3(-4.4, 1.12, 2.95) },
+    plinko: { pos: new THREE.Vector3(2.35, 1.65, 2.85), look: new THREE.Vector3(4.4, 1.5, 2.95) },
+    roulette: { pos: new THREE.Vector3(0, 2.55, 2.2), look: new THREE.Vector3(0, 0.8, 1.15) },
   };
   const camBase = VIEWS.table.pos.clone();
   const camLook = VIEWS.table.look.clone();
@@ -748,7 +750,7 @@ export function buildScene(renderer, { logo, logoDark } = {}) {
 
     // camera: slow breathing sway + a little mouse parallax
     camera.position.set(
-      camBase.x + Math.sin(t * 0.25) * 0.03 + mouse.x * (view === 'table' ? 0.22 : 0.06),
+      camBase.x + Math.sin(t * 0.25) * 0.03 + mouse.x * (view === 'table' ? 0.22 : 0.05),
       camBase.y + Math.sin(t * 0.4) * 0.015 - mouse.y * 0.08,
       camBase.z,
     );
@@ -778,7 +780,7 @@ export function buildScene(renderer, { logo, logoDark } = {}) {
         jack.look(point || camera.position);
       },
       lookAtPlayer() {
-        jack.look(camBase);
+        jack.look(VIEWS[view] ? VIEWS[view].pos : camBase);
       },
       stare() {},
     },
@@ -786,7 +788,7 @@ export function buildScene(renderer, { logo, logoDark } = {}) {
     /** Move the camera between the table and the slot machine. */
     focus(name) {
       if (VIEWS[name]) view = name;
-      jack.look(name === 'slots' ? VIEWS.slots.pos : VIEWS.table.pos);
+      jack.look(VIEWS[name] ? VIEWS[name].pos : VIEWS.table.pos);
     },
     /** Things on the table that show a name tag when you point at them. */
     props: [
