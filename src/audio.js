@@ -464,6 +464,28 @@ export class Sound {
     return this.songPlaying;
   }
 
+  // ---- thin ice ----------------------------------------------------------------------------------
+  iceStep() {
+    this.burst({ dur: 0.05, freq: 2600, q: 3, gain: 0.25 });
+    this.burst({ dur: 0.08, freq: 400, q: 1, gain: 0.25, type: 'lowpass', when: 0.02 });
+  }
+
+  iceCrack() {
+    for (let i = 0; i < 6; i++) this.burst({ dur: 0.03, freq: 3000 + Math.random() * 3000, q: 4, gain: 0.35, when: i * 0.03 });
+    this.burst({ dur: 0.4, freq: 120, q: 1, gain: 0.6, type: 'lowpass', when: 0.36 });
+  }
+
+  splash() {
+    if (!this.ctx) return;
+    this.burst({ dur: 0.9, freq: 900, q: 0.6, gain: 0.35, when: 0.55 });
+    this.burst({ dur: 0.5, freq: 250, q: 1, gain: 0.5, type: 'lowpass', when: 0.55 });
+  }
+
+  /** Ratchet clicks of a wind-up key. */
+  windUp() {
+    for (let i = 0; i < 8; i++) this.burst({ dur: 0.02, freq: 4200, q: 8, gain: 0.25, when: i * 0.06 });
+  }
+
   // ---- slot machine ----------------------------------------------------------------------------
   lever() {
     this.burst({ dur: 0.12, freq: 900, q: 2, gain: 0.35 });

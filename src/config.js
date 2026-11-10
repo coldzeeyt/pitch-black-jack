@@ -65,6 +65,16 @@ export const CONFIG = {
       ],
     },
     {
+      id: 'thinice',
+      name: 'Thin Ice',
+      blurb: 'A wind-up penguin hops across the ice. Every hop pays more. Cash out before a tile cracks.',
+      modes: [
+        { id: 'ice-easy', name: 'Easy', blurb: '1 in 12 tiles cracks. Slow, steady climb.', rules: { breakChance: 1 / 12 } },
+        { id: 'ice-medium', name: 'Medium', blurb: '1 in 6 tiles cracks. Pays 1.15× on the first hop.', rules: { breakChance: 1 / 6 } },
+        { id: 'ice-hard', name: 'Hard', blurb: '1 in 3 tiles cracks. Huge payouts if you dare.', rules: { breakChance: 1 / 3 } },
+      ],
+    },
+    {
       id: 'slots',
       name: 'Slots',
       blurb: "Pull the lever on the machine in the corner. Three Jacks pays 200 to 1.",

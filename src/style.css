@@ -236,6 +236,12 @@ kbd {
 #intro { overflow-y: auto; justify-content: flex-start; padding-top: max(24px, 6vh); }
 .brand em { font-style: normal; color: var(--gold); margin-left: 8px; font-size: 12px; }
 
+/* Thin Ice multiplier tags */
+.total.mult { padding: 2px 7px; font-size: 12px; opacity: 0.75; }
+.total.mult.passed { color: var(--good); opacity: 1; }
+.total.mult.next { border-color: var(--gold); box-shadow: 0 0 12px rgba(201, 163, 92, 0.45); opacity: 1; }
+.total.mult.broke { color: var(--blood); border-color: var(--blood); opacity: 1; }
+
 /* name tag when pointing at things on the table */
 #tip {
   position: fixed;

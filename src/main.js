@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { BlackjackGame, handValue } from './blackjack.js';
 import { HiLoGame } from './hilo.js';
 import { SlotsGame } from './slots.js';
+import { ThinIceGame } from './thinice.js';
+import { createThinIce } from './thinice3d.js';
 import { buildScene, makeChipStack, TABLE_Y, SHOE_POS, DISCARD_POS } from './scene.js';
 import { loadCardArt, createCardMesh, disposeCardMesh } from './cards.js';
 import { Sound } from './audio.js';
@@ -35,6 +37,8 @@ const [logo, logoDark] = await Promise.all([loadImg('assets/logo-cream.png'), lo
 await loadCardArt(renderer);
 const world = buildScene(renderer, { logo, logoDark });
 const { scene, camera } = world;
+const ice = createThinIce({ tableY: TABLE_Y });
+scene.add(ice.group);
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   world.resize();
@@ -285,6 +289,15 @@ function renderActions() {
       ];
     } else items = betItems('Turn a card');
   } else if (mode.game === 'slots') items = betItems('Spin');
+  else if (mode.game === 'thinice') {
+    if (phase === 'walking') {
+      const next = game.multiplier(game.steps + 1);
+      items = [
+        { key: 'Space', id: 'hop', label: `Hop (next ×${next.toFixed(2)})`, on: game.canStep },
+        { key: 'C', id: 'cashice', label: game.canCashOut ? `Cash out ${money(game.pot)}` : 'Cash out', on: game.canCashOut },
+      ];
+    } else items = betItems('Wind him up');
+  }
   else if (phase === 'betting' || phase === 'settled')
     items = [
       { key: '1–5', id: 'chipHint', label: 'Add chips', on: game.bet < Math.min(game.rules.maxBet, game.bankroll) },
@@ -379,6 +392,7 @@ let ledger = [{ label: 'Opening balance', detail: 'Chips bought at the cage', am
 function newGame(bankroll = STARTING_MONEY) {
   if (mode.game === 'hilo') return new HiLoGame({ bankroll, bet: 25, rules: mode.rules });
   if (mode.game === 'slots') return new SlotsGame({ bankroll, bet: 5, rules: mode.rules });
+  if (mode.game === 'thinice') return new ThinIceGame({ bankroll, bet: 25, rules: mode.rules });
   return new BlackjackGame({ bankroll, bet: 25, rules: { maxBet: 1000, ...mode.rules } });
 }
 function describe(r) {
@@ -646,10 +660,18 @@ function command(id) {
     case 'deal':
       if (game.broke) return showStatement();
       if (mode.game === 'slots') return spinSlots();
+      if (mode.game === 'thinice' && game.phase === 'walking') return command('hop');
       ok = game.deal();
       freshBet = false;
       if (ok && mode.game === 'hilo') return playHilo(game.flush());
+      if (ok && mode.game === 'thinice') return playIce(game.flush());
       break;
+    case 'hop':
+      if (mode.game === 'thinice' && game.step()) return playIce(game.flush());
+      return;
+    case 'cashice':
+      if (mode.game === 'thinice' && game.cashOut()) return playIce(game.flush());
+      return;
     case 'higher':
     case 'lower':
       if (mode.game === 'hilo' && game.call(id)) return playHilo(game.flush());
@@ -718,6 +740,7 @@ const KEYMAP = {
 };
 
 const HILO_KEYS = { h: 'higher', l: 'lower', c: 'collect' };
+const ICE_KEYS = { arrowright: 'hop', w: 'hop', c: 'cashice' };
 
 window.addEventListener('keyup', (e) => {
   if (e.key === 'Shift') shiftHeld = false;
@@ -725,7 +748,7 @@ window.addEventListener('keyup', (e) => {
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Shift') shiftHeld = true;
   if (!started) {
-    const n = Number(e.key);
+    const n = e.key === '0' ? 10 : Number(e.key);
     if (n >= 1 && n <= MODES.length) begin(MODES[n - 1]);
     else if (e.key === 'Enter' || e.key === ' ') begin(mode);
     e.preventDefault();
@@ -753,7 +776,7 @@ window.addEventListener('keydown', (e) => {
     $('help').classList.remove('show');
     return;
   }
-  const id = (mode.game === 'hilo' ? HILO_KEYS[k] : undefined) ?? KEYMAP[k];
+  const id = (mode.game === 'hilo' ? HILO_KEYS[k] : mode.game === 'thinice' ? ICE_KEYS[k] : undefined) ?? KEYMAP[k];
   if (id) {
     e.preventDefault();
     if (e.repeat && id !== 'betUp' && id !== 'betDown') return;
@@ -771,7 +794,7 @@ for (const g of CONFIG.games) {
     const entry = MODES[modeNumber++];
     const b = document.createElement('button');
     b.className = 'mode';
-    b.innerHTML = `<kbd>${modeNumber}</kbd><span><strong>${m.name}</strong><small>${m.blurb}</small></span>`;
+    b.innerHTML = `<kbd>${modeNumber % 10}</kbd><span><strong>${m.name}</strong><small>${m.blurb}</small></span>`;
     b.addEventListener('click', (ev) => {
       ev.stopPropagation();
       begin(entry);
@@ -797,6 +820,8 @@ function begin(chosen) {
   } else if (!game) game = newGame();
   freshBet = true;
   world.focus(mode.game === 'slots' ? 'slots' : 'table');
+  if (mode.game === 'thinice') ice.show();
+  else ice.hide();
   $('intro').classList.add('gone');
   $('hud').classList.add('show');
   renderActions();
@@ -1001,6 +1026,109 @@ async function spinSlots() {
 }
 
 // ------------------------------------------------------------------------------------------
+// Thin Ice: the penguin hops tile by tile; you decide when to cash out
+// ------------------------------------------------------------------------------------------
+let iceRound = 0;
+let iceChips = null;
+
+function setIceChips(amount) {
+  if (iceChips) scene.remove(iceChips);
+  iceChips = amount > 0 ? makeChipStack(amount) : null;
+  if (iceChips) {
+    iceChips.position.copy(betSpot(0, 1));
+    scene.add(iceChips);
+  }
+}
+
+/** Multiplier tags under every tile: passed ones go green, the next one glows. */
+function iceLabels(ladder, steps, broken = -1) {
+  ladder.forEach((m, i) => {
+    const el = labelEl('x:ice:' + i);
+    const p = ice.tileWorld(i);
+    el.dataset.x = p.x;
+    el.dataset.y = TABLE_Y + 0.02;
+    el.dataset.z = p.z + 0.27;
+    let cls = 'total mult';
+    if (i === broken) cls += ' broke';
+    else if (i < steps) cls += ' passed';
+    else if (i === steps && broken < 0) cls += ' next';
+    el.className = cls;
+    el.innerHTML = i === broken ? '<b>CRACK</b>' : `<b>×${m.toFixed(2)}</b>`;
+  });
+}
+
+async function playIce(events) {
+  busy = true;
+  renderActions();
+  for (const e of events) {
+    switch (e.type) {
+      case 'start':
+        iceRound += 1;
+        ice.reset();
+        setIceChips(e.bet);
+        sound.chips(4);
+        sound.windUp();
+        iceLabels(e.ladder, 0);
+        world.jack.look(ice.tileWorld(0));
+        await sleep(500);
+        break;
+      case 'hop':
+        sound.iceStep();
+        await ice.hopTo(e.tile);
+        iceLabels(game.ladder(), e.steps);
+        setIceChips(e.pot);
+        world.jack.look(ice.tileWorld(Math.min(e.steps, game.rules.tiles - 1)));
+        break;
+      case 'crack':
+        sound.iceCrack();
+        sound.splash();
+        sound.hush(3);
+        world.flicker(1.2);
+        iceLabels(game.ladder(), e.tile, e.tile);
+        await ice.breakAt(e.tile);
+        if (iceChips) {
+          const c = iceChips;
+          iceChips = null;
+          await glide(c, new THREE.Vector3(0, TABLE_Y + 0.05, 0.25), { duration: 0.5, arc: 0.1 });
+          scene.remove(c);
+        }
+        break;
+      case 'settle': {
+        const r = e;
+        if (r.payout > 0) {
+          ice.celebrate();
+          if (r.how === 'across') sound.jingle(0.8);
+          sound.chips(6);
+          if (iceChips) {
+            const c = iceChips;
+            iceChips = null;
+            await sleep(400);
+            await glide(c, new THREE.Vector3(0, TABLE_Y, 3.0), { duration: 0.5 });
+            scene.remove(c);
+          }
+        }
+        const detail =
+          r.how === 'fell'
+            ? r.steps
+              ? `Ice cracked after ${r.steps} hop${r.steps === 1 ? '' : 's'}`
+              : 'Ice cracked on the first hop'
+            : `${r.how === 'across' ? 'Made it across' : 'Cashed out'} at ×${r.mult.toFixed(2)} (${r.steps} hops)`;
+        ledger.push({ label: `Walk ${iceRound}`, detail, amount: r.net });
+        freshBet = true;
+        world.jack.lookAtPlayer();
+        break;
+      }
+    }
+  }
+  busy = false;
+  renderActions();
+  if (game.broke) {
+    await sleep(900);
+    showStatement();
+  }
+}
+
+// ------------------------------------------------------------------------------------------
 // pointing at things: a small name tag says what they are
 // ------------------------------------------------------------------------------------------
 const tip = $('tip');
@@ -1157,6 +1285,11 @@ async function restartGame() {
   }
   hilo.round = 0;
   spinCount = 0;
+  iceRound = 0;
+  if (iceChips) scene.remove(iceChips);
+  iceChips = null;
+  if (mode.game === 'thinice') ice.show();
+  else ice.hide();
   game = newGame();
   stats = { hands: 0, won: 0 };
   ledger = [{ label: 'Opening balance', detail: 'Chips bought at the cage', amount: STARTING_MONEY, opening: true }];
@@ -1172,6 +1305,7 @@ async function backToModes() {
   await restartGame();
   started = false;
   world.focus('table');
+  ice.hide();
   $('hud').classList.remove('show');
   $('intro').classList.remove('gone');
 }
@@ -1185,6 +1319,7 @@ renderer.setAnimationLoop(() => {
   const t = clock.elapsedTime;
   stepTweens(dt);
   world.update(dt, t);
+  ice.update(dt, t);
   renderer.render(scene, camera);
   positionLabels();
 });

@@ -110,3 +110,64 @@ test('slots: a spin takes the bet and pays the win', () => {
   assert.equal(r.win, 400);
   assert.equal(g.bankroll, 498);
 });
+
+import { ThinIceGame, multiplierAfter } from '../src/thinice.js';
+
+test('thin ice: multipliers grow with every safe hop', () => {
+  assert.equal(multiplierAfter(0, 1 / 6, 0.04), 1);
+  assert.equal(multiplierAfter(1, 1 / 6, 0.04), 1.15); // 0.96 / (5/6)
+  assert.ok(multiplierAfter(10, 1 / 6, 0.04) > 5);
+});
+
+test('thin ice: hop, hop, cash out', () => {
+  const g = new ThinIceGame({ bankroll: 1000, bet: 100, rng: () => 0.9 });
+  g.deal();
+  assert.equal(g.bankroll, 900);
+  g.step();
+  g.step();
+  assert.equal(g.steps, 2);
+  assert.ok(g.cashOut());
+  assert.equal(g.bankroll, 900 + 100 * multiplierAfter(2, 1 / 6, 0.04));
+});
+
+test('thin ice: the ice breaks and the stake is lost', () => {
+  const rolls = [0.9, 0.01];
+  const g = new ThinIceGame({ bankroll: 1000, bet: 100, rng: () => rolls.shift() });
+  g.deal();
+  g.step();
+  g.step();
+  assert.equal(g.phase, 'settled');
+  assert.equal(g.lastResult.how, 'fell');
+  assert.equal(g.bankroll, 900);
+});
+
+test('thin ice: you cannot cash out before the first hop', () => {
+  const g = new ThinIceGame({ bankroll: 1000, bet: 100 });
+  g.deal();
+  assert.equal(g.cashOut(), false);
+});
+
+test('thin ice: crossing every tile pays automatically', () => {
+  const g = new ThinIceGame({ bankroll: 1000, bet: 10, rules: { tiles: 3 }, rng: () => 0.99 });
+  g.deal();
+  g.step();
+  g.step();
+  g.step();
+  assert.equal(g.lastResult.how, 'across');
+  assert.equal(g.phase, 'settled');
+});
+
+test('thin ice: whenever you cash out, the house keeps a small edge', () => {
+  for (const target of [1, 3, 6]) {
+    const g = new ThinIceGame({ bankroll: 1e9, bet: 10, rules: { breakChance: 1 / 6 } });
+    const rounds = 40000;
+    for (let i = 0; i < rounds; i++) {
+      g.deal();
+      while (g.phase === 'walking' && g.steps < target) g.step();
+      if (g.phase === 'walking') g.cashOut();
+      g.flush();
+    }
+    const r = (g.bankroll - 1e9) / rounds / 10;
+    assert.ok(r < 0.02 && r > -0.15, `cash out at ${target}: ${(r * 100).toFixed(1)}% per round`);
+  }
+});
