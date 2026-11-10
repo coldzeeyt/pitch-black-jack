@@ -80,18 +80,25 @@ const table = {
   active: -1,
 };
 
-const DEALER_Z = 0.5;
+const DEALER_Z = 0.66;
 const HAND_Z = 1.42;
 const BET_Z = 1.97;
+const SPREAD = 0.35; // card width + a small gap: cards sit side by side, nothing hidden
 
 function handX(i, n) {
   return (i - (n - 1) / 2) * 0.98;
 }
-function dealerSlot(j) {
-  return new THREE.Vector3(-0.38 + j * 0.25, TABLE_Y + 0.004 + j * 0.0065, DEALER_Z);
+/** Jack's cards: side by side, re-centred as he draws. */
+function dealerSlot(j, count) {
+  return new THREE.Vector3((j - (count - 1) / 2) * SPREAD, TABLE_Y + 0.004, DEALER_Z);
 }
-function playerSlot(i, j, n) {
-  return new THREE.Vector3(handX(i, n) - 0.1 + j * 0.095, TABLE_Y + 0.004 + j * 0.0065, HAND_Z - j * 0.06);
+/**
+ * Your cards. One hand: side by side, re-centred as you draw.
+ * Several hands after a split: each hand cascades toward you so every card's rank stays visible.
+ */
+function playerSlot(i, j, n, count) {
+  if (n === 1) return new THREE.Vector3((j - (count - 1) / 2) * SPREAD, TABLE_Y + 0.004, HAND_Z);
+  return new THREE.Vector3(handX(i, n) + j * 0.03, TABLE_Y + 0.004 + j * 0.0065, HAND_Z - 0.12 + j * 0.085);
 }
 function betSpot(i, n) {
   return new THREE.Vector3(handX(i, n), TABLE_Y, BET_Z);
@@ -104,12 +111,18 @@ async function dealCardTo(target, handIndex, card, faceDown) {
   scene.add(mesh);
 
   let dest;
+  const shifts = [];
   if (target === 'dealer') {
-    dest = dealerSlot(table.dealer.length);
+    const count = table.dealer.length + 1;
+    dest = dealerSlot(count - 1, count);
+    table.dealer.forEach((d, j) => shifts.push(glide(d.mesh, dealerSlot(j, count), { duration: 0.3 })));
     table.dealer.push({ mesh, card, faceDown });
   } else {
     const h = table.hands[handIndex];
-    dest = playerSlot(handIndex, h.cards.length, table.hands.length);
+    const n = table.hands.length;
+    const count = h.cards.length + 1;
+    dest = playerSlot(handIndex, count - 1, n, count);
+    h.cards.forEach((c, j) => shifts.push(glide(c.mesh, playerSlot(handIndex, j, n, count), { duration: 0.3 })));
     h.cards.push({ mesh, card });
   }
   world.jack.reach(SHOE_POS);
@@ -117,7 +130,7 @@ async function dealCardTo(target, handIndex, card, faceDown) {
   sound.cardDeal();
   await sleep(90);
   world.jack.reach(dest.clone().lerp(SHOE_POS, 0.45));
-  await glide(mesh, dest, { duration: 0.42, rotZ: faceDown ? Math.PI : 0, rotY: rand(-0.05, 0.05), arc: 0.18 });
+  await Promise.all([glide(mesh, dest, { duration: 0.42, rotZ: faceDown ? Math.PI : 0, rotY: rand(-0.03, 0.03), arc: 0.18 }), ...shifts]);
   world.jack.reach(null);
   updateLabels();
 }
@@ -126,7 +139,7 @@ async function relayout() {
   const n = table.hands.length;
   const jobs = [];
   table.hands.forEach((h, i) => {
-    h.cards.forEach((c, j) => jobs.push(glide(c.mesh, playerSlot(i, j, n), { duration: 0.35 })));
+    h.cards.forEach((c, j) => jobs.push(glide(c.mesh, playerSlot(i, j, n, h.cards.length), { duration: 0.35 })));
     if (h.chips) jobs.push(glide(h.chips, betSpot(i, n), { duration: 0.35 }));
   });
   await Promise.all(jobs);
@@ -203,16 +216,16 @@ function updateLabels() {
       ? `<b>${totalText(h.cards.map((c) => c.card))}</b><span class="${r.cls}">${r.text}</span>`
       : `<b>${totalText(h.cards.map((c) => c.card))}</b>${v > 21 ? '<span class="bad">BUST</span>' : ''}`;
     el.classList.toggle('active', i === table.active && n > 0);
-    el.dataset.x = handX(i, n) + 0.05;
-    el.dataset.z = HAND_Z + 0.4;
+    el.dataset.x = n === 1 ? 0 : handX(i, n) + 0.05;
+    el.dataset.z = n === 1 ? HAND_Z + 0.33 : HAND_Z + 0.2 + h.cards.length * 0.085;
   });
   const visible = table.dealer.filter((d) => !d.faceDown).map((d) => d.card);
   if (visible.length) {
     seen.add('d');
     const el = labelEl('d');
     el.innerHTML = `<b>${totalText(visible)}</b>`;
-    el.dataset.x = 0.1;
-    el.dataset.z = DEALER_Z - 0.38;
+    el.dataset.x = 0;
+    el.dataset.z = DEALER_Z - 0.33;
   }
   for (const [k, el] of labelEls) {
     if (!seen.has(k)) {

@@ -524,10 +524,10 @@ export function buildScene(renderer, { logo } = {}) {
   scene.add(tray);
   CHIP_DENOMS.forEach((d, i) => {
     for (const row of [0, 1]) {
-      const stack = makeChipStack(d.value * Math.floor(rand(6, 12)));
+      // upright stacks of a single colour, standing in the tray
+      const stack = makeChipStack(d.value * Math.floor(rand(5, 12)));
       stack.scale.setScalar(0.9);
-      stack.rotation.z = Math.PI / 2;
-      stack.position.set(-0.5 + i * 0.25, TABLE_Y + 0.11, 0.09 + row * 0.12);
+      stack.position.set(-0.5 + i * 0.25, TABLE_Y + 0.04, 0.09 + row * 0.12);
       scene.add(stack);
     }
   });
