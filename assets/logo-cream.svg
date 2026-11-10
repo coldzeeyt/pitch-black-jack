@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 840" width="600" height="840">
+  <defs>
+    <mask id="cut">
+      <rect width="600" height="420" fill="white"/>
+      <text x="300" y="268" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="bold" font-size="150" fill="black">J</text>
+    </mask>
+    <g id="half">
+      <path mask="url(#cut)" d="M300,70 C300,70 172,174 172,264 C172,324 222,352 268,334 C262,368 246,392 222,408 L378,408 C354,392 338,368 332,334 C378,352 428,324 428,264 C428,174 300,70 300,70 Z"/>
+    </g>
+  </defs>
+  <g fill="#e9e2cf">
+    <use href="#half"/>
+    <use href="#half" transform="rotate(180 300 420)"/>
+  </g>
+</svg>

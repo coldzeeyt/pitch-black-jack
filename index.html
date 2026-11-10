@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pitch Black Jack</title>
+  <link rel="icon" href="assets/logo-cream.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="src/style.css" />
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="grain"></div>
+  <div id="vignette"></div>
+  <div id="labels"></div>
+
+  <div id="hud">
+    <header>
+      <div class="brand"><img src="assets/logo-cream.png" alt="" /><span>Pitch Black Jack <em id="modeName"></em></span></div>
+      <div class="stats">
+        <div><small>Bankroll</small><strong id="bankroll">$0</strong></div>
+        <div><small>Bet</small><strong id="bet">$0</strong></div>
+        <div class="shoe-meter" title="Cards left in the shoe"><small>Shoe</small><span id="shoe"></span></div>
+        <button id="songBtn" class="song" title="Play my song (J)"><span>♫ DEALER</span></button>
+        <a id="spotify" class="song" target="_blank" rel="noopener" hidden>Open on Spotify</a>
+        <button id="mute" title="Mute (M)" aria-label="Mute">🔈</button>
+        <button id="helpBtn" title="Rules &amp; keys (?)" aria-label="Help">?</button>
+      </div>
+    </header>
+    <nav id="actions"></nav>
+  </div>
+
+  <div id="help">
+    <div class="card">
+      <h2>House Rules</h2>
+      <ul>
+        <li>Six-deck shoe, reshuffled at the cut card</li>
+        <li>Blackjack pays 3 to 2</li>
+        <li>Dealer stands on all 17s and peeks for blackjack</li>
+        <li>Insurance pays 2 to 1 when Jack shows an Ace</li>
+        <li>Double on any first two cards, including after a split</li>
+        <li>Split pairs up to four hands; split Aces get one card each</li>
+        <li>Late surrender gives back half your bet</li>
+        <li><b>Hit &amp; Stand</b> mode: only hit and stand. <b>Single Deck</b>: one deck, no surrender</li>
+        <li>You start with $1,000. Bet $5 to $1,000 a hand; a win pays your bet</li>
+      </ul>
+      <h2>Keys</h2>
+      <div class="keys">
+        <span><kbd>H</kbd> Hit</span><span><kbd>S</kbd> Stand</span><span><kbd>D</kbd> Double</span>
+        <span><kbd>P</kbd> Split</span><span><kbd>R</kbd> Surrender</span>
+        <span><kbd>I</kbd> / <kbd>N</kbd> Insurance yes / no</span>
+        <span><kbd>1</kbd>–<kbd>5</kbd> Add a $1 / $5 / $25 / $100 / $500 chip</span>
+        <span><kbd>↑</kbd> <kbd>↓</kbd> Bet ±5 (Shift: ±25)</span>
+        <span><kbd>⌫</kbd> Clear bet</span>
+        <span><kbd>Space</kbd> Deal</span><span><kbd>E</kbd> Cash out &amp; end</span>
+        <span><kbd>J</kbd> Play / stop DEALER</span><span><kbd>M</kbd> Mute</span><span><kbd>?</kbd> This card</span>
+      </div>
+      <p class="dim">Click anywhere to close.</p>
+    </div>
+  </div>
+
+  <div id="intro">
+    <img class="logo" src="assets/logo-cream.png" alt="" />
+    <h1>Pitch Black Jack</h1>
+    <p class="tag">Your dealer tonight is Jack. You walk in with <b>$1,000</b>.</p>
+    <p class="enter">Choose your game</p>
+    <div id="modes"></div>
+    <p class="dim">Best with sound on · <kbd>H</kbd> hit · <kbd>S</kbd> stand · <kbd>D</kbd> double · <kbd>P</kbd> split · <kbd>1</kbd>–<kbd>5</kbd> chips · <kbd>E</kbd> cash out · <kbd>?</kbd> all keys</p>
+  </div>
+  <div id="statement">
+    <div class="paper">
+      <div class="head">
+        <img src="assets/logo-black.png" alt="" />
+        <div><h2>Account Statement</h2><small>Pitch Black Jack · Table 1 · Dealer: Jack</small></div>
+      </div>
+      <div class="cols"><span>Transaction</span><span>Amount</span><span>Balance</span></div>
+      <div id="ledger"></div>
+      <div id="acct">
+        <small>Your account</small>
+        <strong id="acct-balance">$1,000</strong>
+        <div id="transfer-bar"></div>
+        <span id="transfer-label"></span>
+      </div>
+      <div id="stamp" class="stamp"></div>
+      <button id="again"><kbd>Space</kbd> Play again with $1,000</button>
+    </div>
+  </div>
+  <div id="loading">The smoke is settling…</div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

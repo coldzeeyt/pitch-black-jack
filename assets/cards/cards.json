@@ -1,0 +1,16 @@
+{
+  "back": null,
+  "face": null,
+  "sheet": {
+    "image": "master.png",
+    "columns": 7,
+    "rows": 3,
+    "order": [
+      "A", "2", "3", "4", "5", "6", "7",
+      "8", "9", "10", "K", "Q", "J", null,
+      null, null, null, "back", null, null, null
+    ]
+  },
+  "ranks": {},
+  "cards": {}
+}
