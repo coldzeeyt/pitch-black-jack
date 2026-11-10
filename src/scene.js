@@ -1,6 +1,7 @@
 // The parlor: a smoke-filled back room, one green table under one flickering lamp,
 // patrons murmuring in the dark, and Jack.
 import * as THREE from 'three';
+import { createJack } from './jack.js';
 
 export const TABLE_Y = 0.92; // felt height
 const RX = 3.2; // table half-width
@@ -257,181 +258,6 @@ export function makeChipStack(amount) {
 // Jack
 // ---------------------------------------------------------------------------------------------
 
-// Low-poly, hand-built: every piece is a few flat-shaded facets, with a slight
-// deterministic "chisel" jitter so it reads as sculpted rather than generated.
-function chisel(geo, amount, seed = 1) {
-  const pos = geo.attributes.position;
-  const v = new THREE.Vector3();
-  for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(pos, i);
-    // hash of the rounded position: shared vertices move together, so faces never crack
-    const h = Math.sin(Math.round(v.x * 1e4) * 12.9898 + Math.round(v.y * 1e4) * 78.233 + Math.round(v.z * 1e4) * 37.719 + seed) * 43758.5453;
-    const n = (h - Math.floor(h)) * 2 - 1;
-    v.multiplyScalar(1 + n * amount);
-    pos.setXYZ(i, v.x, v.y, v.z);
-  }
-  geo.computeVertexNormals();
-  return geo;
-}
-
-function buildJack() {
-  const jack = new THREE.Group();
-  jack.position.set(0, 0, -0.55);
-
-  const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true, ...extra });
-  const skin = mat(0xc29a7e); // hands only: the one part of him the lamp reaches
-  const skinShade = mat(0xa47e66);
-  const shadowFace = mat(0x0b0909, { roughness: 1 }); // under the hat there is no face, just dark
-  const shirt = mat(0x6e675c);
-  const vest = mat(0x1a1618);
-  const vestDark = mat(0x1b1719);
-  const hairM = mat(0x17110f, { roughness: 0.5 });
-  const red = mat(0x7d1d1d);
-  const brass = mat(0xb08a3e, { metalness: 0.6, roughness: 0.4 });
-  const visorMat = mat(0x2f7a45, { transparent: true, opacity: 0.78, side: THREE.DoubleSide, emissive: 0x0e3a1c, emissiveIntensity: 0.5 });
-
-  const part = (geo, m, parent, x = 0, y = 0, z = 0) => {
-    const mesh = new THREE.Mesh(geo, m);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    parent.add(mesh);
-    return mesh;
-  };
-
-  // ---- torso ------------------------------------------------------------------------------
-  const body = new THREE.Group();
-  jack.add(body);
-  // shirt core: 7-sided barrel, wider at the chest
-  const chestPts = [
-    [0.0, 0.0], [0.2, 0.0], [0.215, 0.18], [0.25, 0.42], [0.26, 0.56], [0.2, 0.66], [0.07, 0.7], [0.0, 0.7],
-  ].map(([r, y]) => new THREE.Vector2(r, y));
-  const chest = part(chisel(new THREE.LatheGeometry(chestPts, 7), 0.02, 3), shirt, body, 0, 1.0, 0);
-  chest.scale.set(1.05, 1, 0.72);
-  // vest: same lathe slightly larger, open at the front
-  const vestPts = chestPts.map((p) => new THREE.Vector2(p.x + 0.014, p.y)).slice(0, 6);
-  const vestMesh = part(
-    chisel(new THREE.LatheGeometry(vestPts, 9, 0.5, Math.PI * 2 - 1.0), 0.015, 5),
-    vest,
-    body,
-    0,
-    0.995,
-    0,
-  );
-  vestMesh.scale.set(1.05, 1, 0.74);
-  // lapels: two slanted plates forming a V
-  for (const s of [-1, 1]) {
-    const lapel = part(new THREE.BoxGeometry(0.06, 0.34, 0.012), vestDark, body, s * 0.07, 1.47, 0.175);
-    lapel.rotation.z = s * 0.32;
-    lapel.rotation.y = s * -0.35;
-  }
-  // brass buttons + watch chain
-  for (let i = 0; i < 3; i++) part(new THREE.OctahedronGeometry(0.013, 0), brass, body, 0.035, 1.3 - i * 0.075, 0.185);
-  const chain = part(new THREE.TorusGeometry(0.07, 0.004, 3, 8, Math.PI), brass, body, 0.1, 1.24, 0.17);
-  chain.rotation.z = Math.PI;
-  chain.rotation.y = -0.4;
-  // bow tie
-  for (const s of [-1, 1]) {
-    const wing = part(new THREE.ConeGeometry(0.035, 0.07, 4), red, body, s * 0.035, 1.665, 0.11);
-    wing.rotation.z = (-s * Math.PI) / 2;
-  }
-  part(new THREE.BoxGeometry(0.022, 0.026, 0.02), red, body, 0, 1.665, 0.115);
-  // shoulders
-  for (const s of [-1, 1]) {
-    const sh = part(chisel(new THREE.IcosahedronGeometry(0.11, 0), 0.05, s + 9), vest, body, s * 0.25, 1.6, 0);
-    sh.scale.set(1.1, 0.75, 1);
-  }
-  // neck + collar
-  part(new THREE.CylinderGeometry(0.055, 0.065, 0.12, 6), skinShade, jack, 0, 1.73, 0);
-  const collar = part(new THREE.CylinderGeometry(0.075, 0.09, 0.06, 7, 1, true), shirt, body, 0, 1.69, 0);
-  collar.material = shirt;
-
-  // ---- head: a silhouette under the hat ----------------------------------------------------
-  const head = new THREE.Group();
-  head.position.set(0, 1.9, 0.0);
-  jack.add(head);
-  const cranium = part(chisel(new THREE.IcosahedronGeometry(0.13, 1), 0.04, 21), shadowFace, head, 0, 0.02, -0.01);
-  cranium.scale.set(0.88, 1.05, 1.0);
-  const jaw = part(chisel(new THREE.IcosahedronGeometry(0.095, 0), 0.06, 22), shadowFace, head, 0, -0.07, 0.03);
-  jaw.scale.set(0.95, 1.05, 1.0);
-  const nose = part(new THREE.ConeGeometry(0.02, 0.07, 4), shadowFace, head, 0, -0.01, 0.13);
-  nose.rotation.x = Math.PI / 2 + 0.45;
-  for (const s of [-1, 1]) {
-    const ear = part(new THREE.OctahedronGeometry(0.03, 0), shadowFace, head, s * 0.115, 0.0, -0.005);
-    ear.scale.set(0.4, 1.2, 0.8);
-  }
-  // the fedora: low, wide brim tipped forward over where his eyes would be
-  const felt = mat(0x141113, { roughness: 0.95 });
-  const hat = new THREE.Group();
-  hat.position.set(0, 0.085, 0.0);
-  hat.rotation.x = 0.16;
-  head.add(hat);
-  const brim = part(chisel(new THREE.CylinderGeometry(0.27, 0.28, 0.014, 12), 0.02, 51), felt, hat, 0, 0, 0.01);
-  brim.scale.set(1, 1, 1.08);
-  // front and back of the brim snap down a touch
-  const bpos = brim.geometry.attributes.position;
-  for (let i = 0; i < bpos.count; i++) {
-    const x = bpos.getX(i), z = bpos.getZ(i);
-    const r = Math.hypot(x, z);
-    if (r > 0.18) bpos.setY(i, bpos.getY(i) - Math.abs(z / r) * (r - 0.18) * 0.45);
-  }
-  brim.geometry.computeVertexNormals();
-  const crown = part(chisel(new THREE.CylinderGeometry(0.105, 0.135, 0.15, 8), 0.03, 52), felt, hat, 0, 0.08, -0.005);
-  crown.scale.set(1, 1, 1.12);
-  // pinched crease on top
-  const crease = part(new THREE.BoxGeometry(0.03, 0.03, 0.2), mat(0x0a0809), hat, 0, 0.15, -0.005);
-  crease.rotation.z = Math.PI / 4;
-  part(new THREE.CylinderGeometry(0.137, 0.137, 0.03, 8), mat(0x3b1214), hat, 0, 0.022, -0.005); // hat band
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
-  const eyes = [];
-
-  // ---- arms: shoulder -> elbow -> hand, solved every frame ----------------------------------
-  const upperGeo = new THREE.CylinderGeometry(0.052, 0.046, 1, 6);
-  const lowerGeo = new THREE.CylinderGeometry(0.046, 0.036, 1, 6);
-  const arms = [-1, 1].map((side) => {
-    const upper = part(upperGeo, shirt, jack);
-    upper.userData.trim = 0.0;
-    const garter = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.056, 0.035, 6), red);
-    garter.position.y = 0.1; // in the upper arm's stretched local space it is re-scaled below
-    const lower = part(lowerGeo, shirt, jack);
-    lower.userData.trim = 0.0;
-    const armband = part(new THREE.CylinderGeometry(0.057, 0.057, 0.03, 6), red, jack);
-    const cuff = part(new THREE.CylinderGeometry(0.042, 0.042, 0.04, 6), shirt, jack);
-    const hand = new THREE.Group();
-    jack.add(hand);
-    const palm = part(chisel(new THREE.BoxGeometry(0.075, 0.035, 0.09, 1, 1, 1), 0.05, side + 40), skin, hand, 0, 0, 0.03);
-    palm.rotation.x = 0.1;
-    const fingers = part(new THREE.BoxGeometry(0.07, 0.025, 0.05), skinShade, hand, 0, -0.008, 0.095);
-    fingers.rotation.x = 0.35;
-    const thumb = part(new THREE.BoxGeometry(0.022, 0.022, 0.05), skin, hand, -side * 0.045, 0.0, 0.04);
-    thumb.rotation.y = side * 0.5;
-    const rest = new THREE.Vector3(side * 0.4, TABLE_Y + 0.03, 0.18);
-    return {
-      side,
-      upper,
-      lower,
-      armband,
-      cuff,
-      hand,
-      shoulder: new THREE.Vector3(side * 0.27, 1.6, 0),
-      rest,
-      target: rest.clone(),
-      pos: rest.clone(),
-    };
-  });
-
-  return { group: jack, head, body, eyes, arms, eyeMat };
-}
-
-const UP = new THREE.Vector3(0, 1, 0);
-function placeLimb(mesh, a, b) {
-  const dir = new THREE.Vector3().subVectors(b, a);
-  const len = dir.length();
-  mesh.position.copy(a).addScaledVector(dir, 0.5);
-  mesh.quaternion.setFromUnitVectors(UP, dir.normalize());
-  mesh.scale.set(1, Math.max(0.05, len - (mesh.userData.trim ?? 0.08)), 1);
-}
-
 // ---------------------------------------------------------------------------------------------
 
 export function buildScene(renderer, { logo } = {}) {
@@ -518,8 +344,8 @@ export function buildScene(renderer, { logo } = {}) {
   scene.add(dealerEdge);
 
   // dealer's chip tray
-  const tray = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.04, 0.24), new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.6 }));
-  tray.position.set(0, TABLE_Y + 0.02, 0.15);
+  const tray = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.04, 0.27), new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.6 }));
+  tray.position.set(0, TABLE_Y + 0.02, 0.25);
   tray.receiveShadow = true;
   scene.add(tray);
   CHIP_DENOMS.forEach((d, i) => {
@@ -527,7 +353,7 @@ export function buildScene(renderer, { logo } = {}) {
       // upright stacks of a single colour, standing in the tray
       const stack = makeChipStack(d.value * Math.floor(rand(5, 12)));
       stack.scale.setScalar(0.9);
-      stack.position.set(-0.5 + i * 0.25, TABLE_Y + 0.04, 0.09 + row * 0.12);
+      stack.position.set(-0.4 + i * 0.2, TABLE_Y + 0.04, 0.19 + row * 0.12);
       scene.add(stack);
     }
   });
@@ -817,13 +643,12 @@ export function buildScene(renderer, { logo } = {}) {
   let wispIdx = 0;
 
   // --- Jack --------------------------------------------------------------------------------
-  const jack = buildJack();
-  scene.add(jack.group);
-  const lookTarget = new THREE.Vector3().copy(camBase);
-  const lookSmoothed = lookTarget.clone();
-  let blinkTimer = rand(2, 5);
-  let tiltPhase = 0;
+  const jack = createJack({ tableY: TABLE_Y });
+  jack.object.position.set(0, 0, -0.32);
+  scene.add(jack.object);
+  jack.look(camBase);
   let flickerBoost = 0;
+  const jackEmber = new THREE.Vector3();
   const mouse = new THREE.Vector2();
   window.addEventListener('pointermove', (e) => {
     mouse.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
@@ -867,11 +692,13 @@ export function buildScene(renderer, { logo } = {}) {
     }
     wispTimer -= dt;
     if (wispTimer <= 0) {
-      wispTimer = 0.12;
+      wispTimer = 0.09;
       const w = wisps[wispIdx++ % wisps.length];
+      const fromJack = wispIdx % 2 === 0;
+      const origin = fromJack ? jack.emberWorld(jackEmber).clone() : emberPos.clone();
       w.visible = true;
-      w.position.copy(emberPos);
-      w.userData = { life: 0, max: rand(3.5, 5), phase: rand(0, 6) };
+      w.position.copy(origin);
+      w.userData = { life: 0, max: rand(3.5, 5), phase: rand(0, 6), origin };
       w.material.rotation = rand(0, 6);
     }
     for (const w of wisps) {
@@ -884,8 +711,8 @@ export function buildScene(renderer, { logo } = {}) {
         continue;
       }
       w.position.y += dt * 0.22;
-      w.position.x = emberPos.x + Math.sin(u.life * 1.7 + u.phase) * 0.06 * (1 + k * 3) + k * 0.25;
-      w.position.z = emberPos.z + Math.cos(u.life * 1.3 + u.phase) * 0.04 * (1 + k * 3);
+      w.position.x = u.origin.x + Math.sin(u.life * 1.7 + u.phase) * 0.06 * (1 + k * 3) + k * 0.25;
+      w.position.z = u.origin.z + Math.cos(u.life * 1.3 + u.phase) * 0.04 * (1 + k * 3);
       const sc = 0.04 + k * 0.5;
       w.scale.set(sc, sc, 1);
       w.material.opacity = Math.sin(k * Math.PI) * 0.16 * (1 - k * 0.5);
@@ -900,45 +727,7 @@ export function buildScene(renderer, { logo } = {}) {
       u.head.position.x = Math.sin(t * u.speed * 1.3 + u.phase) * 0.03;
     }
 
-    // Jack: breathing, head tracking, blinking, arms
-    jack.body.scale.set(1 + Math.sin(t * 1.1) * 0.008, 1 + Math.sin(t * 1.1) * 0.012, 1);
-    lookSmoothed.lerp(lookTarget, 1 - Math.pow(0.02, dt));
-    tiltPhase += dt;
-    const head = jack.head;
-    tmp.copy(lookSmoothed);
-    jack.group.worldToLocal(tmp);
-    tmp.sub(head.position);
-    const yaw = Math.atan2(tmp.x, tmp.z);
-    const pitch = -Math.atan2(tmp.y, Math.hypot(tmp.x, tmp.z)) * 0.8;
-    head.rotation.y = THREE.MathUtils.clamp(yaw, -0.9, 0.9);
-    head.rotation.x = THREE.MathUtils.clamp(pitch, -0.4, 0.7);
-    head.rotation.z = Math.sin(tiltPhase * 0.23) * 0.09;
-    blinkTimer -= dt;
-    const blink = blinkTimer < 0.12 && blinkTimer > 0 ? 0.1 : 1;
-    if (blinkTimer < 0) blinkTimer = rand(2.5, 7);
-    for (const e of jack.eyes) e.scale.y = blink;
-
-    for (const arm of jack.arms) {
-      arm.pos.lerp(arm.target, 1 - Math.pow(0.0005, dt));
-      handLocal.copy(arm.pos);
-      jack.group.worldToLocal(handLocal);
-      shoulderW.copy(arm.shoulder);
-      elbow.addVectors(shoulderW, handLocal).multiplyScalar(0.5);
-      elbow.x += arm.side * 0.12;
-      elbow.y -= 0.1;
-      elbow.z -= 0.08;
-      placeLimb(arm.upper, shoulderW, elbow);
-      placeLimb(arm.lower, elbow, handLocal);
-      // red sleeve garter sits a third of the way down the upper arm, the cuff at the wrist
-      arm.armband.position.lerpVectors(shoulderW, elbow, 0.38);
-      arm.armband.quaternion.copy(arm.upper.quaternion);
-      arm.cuff.position.lerpVectors(elbow, handLocal, 0.92);
-      arm.cuff.quaternion.copy(arm.lower.quaternion);
-      arm.hand.position.copy(handLocal);
-      // hand lies flat, pointing along the forearm's heading
-      tmp.subVectors(handLocal, elbow);
-      arm.hand.rotation.set(0, Math.atan2(tmp.x, tmp.z), 0);
-    }
+    jack.update(dt, t);
 
     // camera: slow breathing sway + a little mouse parallax
     camera.position.set(
@@ -964,22 +753,17 @@ export function buildScene(renderer, { logo } = {}) {
     resize,
     discardPile,
     jack: {
-      /** Move Jack's right (dealing) hand toward a world point; null returns it to rest. */
+      /** Move one of Jack's hands (1 right, -1 left) toward a world point; null returns it to rest. */
       reach(point, side = 1) {
-        const arm = jack.arms[side > 0 ? 1 : 0];
-        if (point) arm.target.copy(point).add(new THREE.Vector3(0, 0.05, 0));
-        else arm.target.copy(arm.rest);
+        jack.reach(point, side);
       },
       look(point) {
-        lookTarget.copy(point || camera.position);
+        jack.look(point || camera.position);
       },
       lookAtPlayer() {
-        lookTarget.copy(camBase);
+        jack.look(camBase);
       },
-      stare() {
-        // eyes burn a little brighter for a moment
-        /* no face to see: he just holds still */
-      },
+      stare() {},
     },
     radio: {
       object: radio,

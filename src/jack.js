@@ -335,7 +335,7 @@ export function createJack({ tableY = 0.92 } = {}) {
     const hand = makeHand(side);
     waist.add(hand);
     // Hands rest on the felt just in front of him, slightly turned in.
-    const rest = new THREE.Vector3(side * 0.3, tableY + 0.018, 0.34);
+    const rest = new THREE.Vector3(side * 0.3, tableY + 0.025, 0.28);
     return { side, shoulder, upper, fore, elbow, hand, rest, target: rest.clone(), pos: rest.clone() };
   });
 

@@ -89,10 +89,12 @@ separate files per card.
 index.html          page, HUD, intro and statement screens
 src/blackjack.js    rules engine (pure logic, emits events)
 src/main.js         plays events back as 3D animation; input, HUD, statement
-src/scene.js        the room, the table, Jack, the lamp, smoke, the radio
+src/scene.js        the room, the table, the lamp, smoke, the radio
+src/jack.js         Jack: suit, fedora, legs, and arms that reach with two-bone IK
 src/cards.js        3D cards built from your art
 src/audio.js        synthesized ambience (chatter, hum, drone) + foley + the song
 src/config.js       starting money, song, Spotify link
 assets/             cards, logo, music
 tests/              rules tests (node --test)
+preview/jack.html   Jack on his own, with camera angles (npm start, then /preview/jack.html)
 ```

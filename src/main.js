@@ -156,7 +156,7 @@ function setHandChips(i, amount) {
 
 async function sweepTable() {
   const all = [...table.dealer.map((d) => d.mesh), ...table.hands.flatMap((h) => h.cards.map((c) => c.mesh))];
-  world.jack.reach(DISCARD_POS);
+  world.jack.reach(DISCARD_POS, -1);
   const pile = world.discardPile;
   await Promise.all(
     all.map((m, k) =>
@@ -175,7 +175,7 @@ async function sweepTable() {
   table.dealer = [];
   table.hands = [];
   table.insuranceChips = null;
-  world.jack.reach(null);
+  world.jack.reach(null, -1);
   updateLabels();
 }
 
@@ -371,11 +371,11 @@ async function handle(e) {
       break;
     case 'shuffle':
       sound.shuffle();
-      world.jack.reach(DISCARD_POS);
+      world.jack.reach(DISCARD_POS, -1);
       await sleep(900);
       world.discardPile.scale.y = 0.0001;
       world.discardPile.visible = false;
-      world.jack.reach(null);
+      world.jack.reach(null, -1);
       await sleep(900);
       break;
     case 'bet':
@@ -514,7 +514,7 @@ async function settle(r) {
     } else if (h.payout === 0 && h.outcome !== 'surrender') {
       jobs.push(
         sleep(500).then(async () => {
-          await glide(th.chips, new THREE.Vector3(0, TABLE_Y + 0.05, 0.15), { duration: 0.5, arc: 0.1 });
+          await glide(th.chips, new THREE.Vector3(0, TABLE_Y + 0.05, 0.25), { duration: 0.5, arc: 0.1 });
           scene.remove(th.chips);
           th.chips = null;
         }),
@@ -531,7 +531,7 @@ async function settle(r) {
   });
   if (table.insuranceChips) {
     const ic = table.insuranceChips;
-    const to = r.insuranceNet > 0 ? new THREE.Vector3(0.35, TABLE_Y, 3.0) : new THREE.Vector3(0, TABLE_Y + 0.05, 0.15);
+    const to = r.insuranceNet > 0 ? new THREE.Vector3(0.35, TABLE_Y, 3.0) : new THREE.Vector3(0, TABLE_Y + 0.05, 0.25);
     jobs.push(sleep(400).then(() => glide(ic, to, { duration: 0.5 })).then(() => scene.remove(ic)));
     table.insuranceChips = null;
   }
