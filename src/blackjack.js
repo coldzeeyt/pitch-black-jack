@@ -61,6 +61,20 @@ export function isNatural(cards) {
   return cards.length === 2 && handValue(cards).total === 21;
 }
 
+/**
+ * Fair random number in [0, 1) from the platform's cryptographic generator (browser and Node),
+ * so every shuffle is genuinely unpredictable. Falls back to Math.random if it isn't available.
+ */
+export function fairRandom() {
+  const c = globalThis.crypto;
+  if (c && c.getRandomValues) {
+    const buf = new Uint32Array(1);
+    c.getRandomValues(buf);
+    return buf[0] / 4294967296;
+  }
+  return Math.random();
+}
+
 let nextCardId = 1;
 function makeCard(rank, suit) {
   return { id: nextCardId++, rank, suit };
@@ -75,7 +89,7 @@ export class Shoe {
    * @param {Array<string|{rank:string,suit:string}>} [opts.stack] fixed draw order (for tests);
    *        used once, after which the shoe behaves normally.
    */
-  constructor({ decks = 6, penetration = 0.75, rng = Math.random, stack = null } = {}) {
+  constructor({ decks = 6, penetration = 0.75, rng = fairRandom, stack = null } = {}) {
     this.decks = decks;
     this.penetration = penetration;
     this.rng = rng;
@@ -99,7 +113,9 @@ export class Shoe {
         const j = Math.floor(this.rng() * (i + 1));
         [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
       }
-      this.cutIndex = Math.floor(this.cards.length * this.penetration);
+      // Real dealers place the cut card by hand, so where it lands varies a little each shoe.
+      const jitter = Math.floor((this.rng() - 0.5) * this.cards.length * 0.06);
+      this.cutIndex = Math.floor(this.cards.length * this.penetration) + jitter;
     }
     this.dealt = 0;
   }

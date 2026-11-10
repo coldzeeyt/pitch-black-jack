@@ -16,13 +16,55 @@ test('hand values handle soft and hard aces', () => {
   assert.ok(!isNatural(['7', '7', '7']));
 });
 
-test('six-deck shoe has 312 cards and a cut card', () => {
+test('six-deck shoe has 312 cards and a cut card around 75%', () => {
   const s = new Shoe({ decks: 6 });
   assert.equal(s.remaining, 312);
-  for (let i = 0; i < 233; i++) s.draw();
+  assert.ok(s.cutIndex >= 224 && s.cutIndex <= 244, `cut card at ${s.cutIndex}`);
+  for (let i = 0; i < s.cutIndex - 1; i++) s.draw();
   assert.ok(!s.needsShuffle);
   s.draw();
   assert.ok(s.needsShuffle);
+});
+
+test('every shuffle is different', () => {
+  const order = () => new Shoe({ decks: 1 }).cards.map((c) => c.rank + c.suit).join(',');
+  const seen = new Set();
+  for (let i = 0; i < 200; i++) seen.add(order());
+  assert.equal(seen.size, 200);
+});
+
+test('shuffle is unbiased: each card is equally likely to come out first', () => {
+  // 52,000 single-deck shuffles: each card should be first about 1,000 times.
+  const counts = new Map();
+  const N = 52000;
+  for (let i = 0; i < N; i++) {
+    const c = new Shoe({ decks: 1 }).draw();
+    const k = c.rank + c.suit;
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  assert.equal(counts.size, 52);
+  // chi-squared with 51 degrees of freedom; 99.9th percentile is about 87.
+  const expected = N / 52;
+  let chi = 0;
+  for (const n of counts.values()) chi += (n - expected) ** 2 / expected;
+  assert.ok(chi < 87, `chi-squared ${chi.toFixed(1)} too high: shuffle looks biased`);
+});
+
+test('the house edge is real: random play over many hands loses a little, not a lot', () => {
+  // Basic "hit below 17, else stand" play over many random hands. Blackjack's house edge
+  // is small, so the result should be a modest loss per hand, never a big win or a wipeout.
+  const g = new BlackjackGame({ bankroll: 1e9, bet: 10, rules: { insurance: false } });
+  const hands = 20000;
+  for (let i = 0; i < hands; i++) {
+    g.deal();
+    while (g.phase === 'player') {
+      if (handValue(g.currentHand.cards).total < 17) g.hit();
+      else g.stand();
+    }
+    g.flush();
+  }
+  const perHand = (g.bankroll - 1e9) / hands / 10; // as a fraction of the bet
+  assert.ok(perHand < 0.02 && perHand > -0.12, `average result ${(perHand * 100).toFixed(1)}% per hand`);
 });
 
 test('player blackjack pays 3:2', () => {
